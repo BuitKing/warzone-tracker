@@ -1,0 +1,3173 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WARZONE TRACKER</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,900;1,700&family=Cinzel:wght@600;700&family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════════ */
+:root {
+  /* backgrounds — deep military obsidian */
+  --obsidian:   #030406;
+  --void:       #050608;
+  --surface:    #090b0f;
+  --surface2:   #0c0f14;
+  --surface3:   #111520;
+  --rim:        rgba(255,255,255,0.07);
+  --rim2:       rgba(255,255,255,0.16);
+
+  /* P1 — tactical orange */
+  --gold:       #b85500;
+  --gold2:      #d96a00;
+  --gold3:      #f5890f;
+  --gold-glow:  rgba(217,106,0,0.45);
+  --gold-dim:   rgba(217,106,0,0.11);
+  --gold-line:  rgba(245,137,15,0.20);
+
+  /* P2 — ice blue */
+  --ice:        #00aedd;
+  --ice2:       #33ccff;
+  --ice-glow:   rgba(0,174,221,0.35);
+  --ice-dim:    rgba(0,174,221,0.09);
+
+  /* neutrals */
+  --platinum:   #e2e8f0;
+  --silver:     #7a8fa0;
+  --pewter:     #3e5060;
+  --smoke:      #151c26;
+
+  /* status */
+  --ruby:       #e03050;
+  --emerald:    #2ee87a;
+
+  /* COD sharp radii */
+  --r:   3px;
+  --r2:  4px;
+  --r3:  5px;
+}
+
+/* ═══════════════════════════════════════════════════
+   RESET + SCROLLBAR
+═══════════════════════════════════════════════════ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+::-webkit-scrollbar          { width:4px; height:4px; }
+::-webkit-scrollbar-track    { background: var(--obsidian); }
+::-webkit-scrollbar-thumb    { background: var(--smoke); border-radius:99px; }
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(var(--gold), var(--gold2)); }
+* { scrollbar-width:thin; scrollbar-color: var(--smoke) var(--obsidian); }
+
+/* ═══════════════════════════════════════════════════
+   KEYFRAMES
+═══════════════════════════════════════════════════ */
+@keyframes fadeUp   { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn   { from { opacity:0 } to { opacity:1 } }
+@keyframes shimmer  { 0%,100% { opacity:.5 } 50% { opacity:1 } }
+@keyframes goldPulse{ 0%,100% { box-shadow:0 0 8px rgba(224,110,0,.3), inset 0 0 0 1px rgba(224,110,0,.15); } 50% { box-shadow:0 0 22px rgba(224,110,0,.6), inset 0 0 0 1px rgba(224,110,0,.3); } }
+@keyframes icePulse { 0%,100% { box-shadow:0 0 8px rgba(0,184,230,.25), inset 0 0 0 1px rgba(0,184,230,.12); } 50% { box-shadow:0 0 22px rgba(0,184,230,.5), inset 0 0 0 1px rgba(0,184,230,.25); } }
+@keyframes scanline { 0% { transform:translateY(-100%); } 100% { transform:translateY(100vh); } }
+@keyframes borderFlow { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+@keyframes statFlash {
+  0%   { transform:scale(1); }
+  30%  { transform:scale(1.18); filter:brightness(1.5); }
+  100% { transform:scale(1); filter:brightness(1); }
+}
+.stat-val-changed { animation:statFlash .4s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes rowIn    { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+@keyframes toastIn  { from { opacity:0; transform:translateY(16px) scale(.95); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes spinSlow { to { transform:rotate(360deg); } }
+@keyframes glimmer  {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/* ═══════════════════════════════════════════════════
+   BODY + CANVAS
+═══════════════════════════════════════════════════ */
+body {
+  background: var(--obsidian);
+  color: var(--platinum);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Military ambient — richer layered depth */
+body::before {
+  content:'';
+  position: fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 50% at 10% 0%, rgba(217,106,0,.10) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 45% at 90% 100%, rgba(0,174,221,.08) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(0,0,0,.7) 0%, transparent 100%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, rgba(0,0,0,.3) 0%, transparent 100%);
+}
+
+/* Ultra-subtle horizontal scan texture — static, no animation */
+body::after {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.06) 3px,
+    rgba(0,0,0,0.06) 4px
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   BACKGROUND THEMES
+═══════════════════════════════════════════════════ */
+body.bg-default { background: var(--obsidian); }
+
+body.bg-grid {
+  background-color: #030406;
+  background-image:
+    linear-gradient(rgba(217,106,0,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(217,106,0,.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+body.bg-camo {
+  background-color: #040508;
+  background-image:
+    radial-gradient(ellipse 18% 12% at 15% 20%, rgba(30,45,20,.7) 0%, transparent 100%),
+    radial-gradient(ellipse 22% 14% at 70% 60%, rgba(20,35,15,.8) 0%, transparent 100%),
+    radial-gradient(ellipse 16% 10% at 40% 80%, rgba(25,40,18,.6) 0%, transparent 100%),
+    radial-gradient(ellipse 20% 15% at 85% 15%, rgba(15,25,10,.7) 0%, transparent 100%),
+    radial-gradient(ellipse 25% 18% at 55% 35%, rgba(35,50,25,.5) 0%, transparent 100%),
+    radial-gradient(ellipse 14% 9% at 25% 65%, rgba(20,30,15,.6) 0%, transparent 100%);
+}
+
+body.bg-hex {
+  background-color: #030406;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 0 L56 16 L56 50 L28 66 L0 50 L0 16 Z' fill='none' stroke='rgba(217,106,0,0.07)' stroke-width='1'/%3E%3Cpath d='M28 34 L56 50 L56 84 L28 100 L0 84 L0 50 Z' fill='none' stroke='rgba(217,106,0,0.07)' stroke-width='1'/%3E%3C/svg%3E");
+  background-size: 56px 100px;
+}
+
+body.bg-topography {
+  background-color: #040507;
+  background-image:
+    repeating-radial-gradient(circle at 20% 30%, transparent 0, transparent 18px, rgba(217,106,0,.04) 18px, rgba(217,106,0,.04) 19px),
+    repeating-radial-gradient(circle at 75% 70%, transparent 0, transparent 22px, rgba(0,174,221,.03) 22px, rgba(0,174,221,.03) 23px),
+    repeating-radial-gradient(circle at 50% 10%, transparent 0, transparent 30px, rgba(217,106,0,.025) 30px, rgba(217,106,0,.025) 31px);
+}
+
+body.bg-circuit {
+  background-color: #030406;
+  background-image:
+    linear-gradient(rgba(0,174,221,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,174,221,.04) 1px, transparent 1px),
+    linear-gradient(rgba(0,174,221,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,174,221,.02) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px;
+}
+
+.bg-dot {
+  width:14px; height:14px; border-radius:50%; border:1.5px solid rgba(255,255,255,.15);
+  cursor:pointer; padding:0; transition:border-color .15s, transform .15s;
+  flex-shrink:0;
+}
+.bg-dot:hover { transform:scale(1.2); border-color:rgba(255,255,255,.4); }
+.bg-dot.active { border-color:var(--gold3); box-shadow:0 0 8px rgba(217,106,0,.5); }
+.bg-dot-default { background:#030406; }
+.bg-dot-grid    { background-color:#030406; background-image:linear-gradient(rgba(217,106,0,.3) 1px,transparent 1px),linear-gradient(90deg,rgba(217,106,0,.3) 1px,transparent 1px); background-size:4px 4px; }
+.bg-dot-camo    { background:radial-gradient(circle at 30% 40%,#1a2a0f 0%,#0a0d06 60%,#151e0a 100%); }
+.bg-dot-hex     { background:#030406; border-style:dashed; }
+.bg-dot-topo    { background:radial-gradient(circle at 50% 50%,rgba(217,106,0,.3) 0%,transparent 70%),#030406; }
+.bg-dot-circuit { background-color:#030406; background-image:linear-gradient(rgba(0,174,221,.3) 1px,transparent 1px),linear-gradient(90deg,rgba(0,174,221,.3) 1px,transparent 1px); background-size:4px 4px; }
+
+header {
+  position: sticky; top:0; z-index: 50;
+  height: 70px;
+  padding: 0 36px;
+  display: flex; align-items:center; justify-content:space-between; gap:16px;
+  background: rgba(4,5,7,0.96);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  animation: fadeIn .6s ease both;
+}
+
+/* dual-line tactical underline: thin white + orange */
+header::before {
+  content:'';
+  position:absolute; bottom:-2px; left:0; right:0; height:2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--gold2) 15%,
+    var(--gold3) 40%,
+    var(--gold2) 65%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: glimmer 5s linear infinite;
+}
+
+header::after {
+  content:'';
+  position:absolute; bottom:0; left:0; right:0; height:1px;
+  background: rgba(255,255,255,.04);
+}
+
+.logo-wrap { display:flex; align-items:center; gap:16px; }
+.logo {
+  font-family: 'Cinzel', serif;
+  font-size: 26px; font-weight:700; letter-spacing:8px;
+  text-transform:uppercase;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold3) 45%, #ffb060 60%, var(--gold2) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  filter: drop-shadow(0 0 14px rgba(217,106,0,.4));
+}
+.logo-sep { width:1px; height:22px; background: var(--gold-line); }
+.logo-sub {
+  font-family:'JetBrains Mono', monospace;
+  font-size:10px; letter-spacing:5px; color:var(--pewter);
+  text-transform:uppercase;
+}
+
+.header-right { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.session-count {
+  font-family:'JetBrains Mono', monospace;
+  font-size:12px; color:var(--pewter); letter-spacing:1px;
+  padding:5px 14px;
+  border:1px solid var(--rim);
+  border-radius:2px;
+  background:rgba(255,255,255,.02);
+}
+
+/* ═══════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════ */
+.btn {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:14px; font-weight:700; letter-spacing:2.5px;
+  padding:10px 24px; border-radius:var(--r);
+  border:1px solid transparent;
+  cursor:pointer; transition:all .18s; text-transform:uppercase;
+  white-space:nowrap; position:relative; overflow:hidden;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+.btn::after {
+  content:'';
+  position:absolute; inset:0;
+  background:linear-gradient(135deg, rgba(255,255,255,.09), transparent 60%);
+  opacity:0; transition:opacity .18s;
+}
+.btn:hover::after { opacity:1; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #8c3f00 0%, var(--gold) 40%, var(--gold2) 100%);
+  color: #fff8f0;
+  box-shadow: 0 0 22px var(--gold-glow), inset 0 1px 0 rgba(255,255,255,.12);
+  border-color: rgba(255,140,26,.3);
+}
+.btn-primary:hover {
+  box-shadow: 0 0 40px var(--gold-glow), 0 0 80px rgba(224,110,0,.18);
+  transform: translateY(-2px);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-ghost {
+  background: rgba(255,255,255,.03);
+  color: var(--silver);
+  border-color: var(--rim);
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px));
+}
+.btn-ghost:hover { color:var(--platinum); border-color:var(--rim2); background:rgba(255,255,255,.06); }
+
+.btn-danger {
+  font-size:11px; padding:4px 10px;
+  background:transparent; color:var(--ruby); border-color:rgba(232,64,90,.25);
+  clip-path:none; border-radius:2px;
+}
+.btn-danger:hover { background:rgba(232,64,90,.1); border-color:var(--ruby); }
+
+/* ═══════════════════════════════════════════════════
+   TOGGLE
+═══════════════════════════════════════════════════ */
+.view-toggle {
+  display:flex;
+  background: rgba(255,255,255,.02);
+  border:1px solid var(--rim);
+  border-radius:3px;
+  padding:3px; gap:2px;
+}
+.toggle-btn {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:13px; font-weight:700; letter-spacing:2px; padding:7px 20px;
+  background:transparent; border:none; border-radius:2px;
+  cursor:pointer; color:var(--pewter); text-transform:uppercase; transition:all .18s;
+}
+.toggle-btn.active {
+  background:linear-gradient(135deg, #8c3f00, var(--gold2));
+  color:#fff8f0; font-weight:700;
+  box-shadow: 0 0 14px var(--gold-glow);
+}
+.toggle-btn:not(.active):hover { color:var(--platinum); }
+
+/* ═══════════════════════════════════════════════════
+   APP LAYOUT
+═══════════════════════════════════════════════════ */
+.app-layout {
+  display:flex; align-items:flex-start;
+  min-height: calc(100vh - 70px);
+  animation: fadeIn .5s .1s ease both;
+}
+
+.content-area {
+  flex:1; min-width:0;
+  padding:32px 30px 80px;
+  position:relative; z-index:1;
+}
+
+.section-header { display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+.section-title {
+  font-family:'Cinzel', serif;
+  font-size:11px; font-weight:600; letter-spacing:4px;
+  color:var(--gold3); text-transform:uppercase; white-space:nowrap;
+  text-shadow: 0 0 16px rgba(245,137,15,.35), 0 0 40px rgba(245,137,15,.1);
+}
+.section-title::before {
+  content:'▮';
+  color:var(--gold2); font-size:7px; letter-spacing:0;
+  opacity:.8; margin-right:10px;
+}
+.section-line {
+  flex:1; height:1px;
+  background:linear-gradient(90deg, rgba(217,106,0,.35) 0%, rgba(217,106,0,.08) 30%, rgba(255,255,255,.03) 70%, transparent 100%);
+}
+
+/* ═══════════════════════════════════════════════════
+   PLAYER CARDS
+═══════════════════════════════════════════════════ */
+.players-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:36px; }
+
+.player-card {
+  position:relative; overflow:hidden;
+  border-radius:0;
+  border:1px solid var(--rim);
+  background: linear-gradient(145deg, var(--surface2) 0%, var(--void) 55%, rgba(2,3,5,1) 100%);
+  padding:28px 30px 26px;
+  transition:transform .3s, filter .3s, border-color .3s;
+  animation: fadeUp .6s ease both;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+}
+.player-card:nth-child(2) { animation-delay:.1s; }
+.player-card:hover { transform:translateY(-4px); }
+
+.player-card.p1 { border-color:rgba(217,106,0,.28); animation:goldPulse 4.5s ease-in-out infinite; will-change:box-shadow; }
+.player-card.p1:hover { border-color:rgba(245,137,15,.5); }
+.player-card.p2 { border-color:rgba(0,174,221,.18); animation:icePulse 4.5s ease-in-out 1s infinite; will-change:box-shadow; }
+.player-card.p2:hover { border-color:rgba(0,174,221,.42); }
+
+/* top-left HUD corner bracket */
+.player-card::before {
+  content:'';
+  position:absolute; top:0; left:0;
+  width:18px; height:18px;
+  border-top:2px solid currentColor;
+  border-left:2px solid currentColor;
+  pointer-events:none; z-index:1;
+  opacity:.6;
+}
+.player-card.p1::before { color:var(--gold3); }
+.player-card.p2::before { color:var(--ice2); }
+
+/* bottom-right HUD corner bracket */
+.player-card::after {
+  content:'';
+  position:absolute; bottom:0; right:0;
+  width:18px; height:18px;
+  border-bottom:2px solid currentColor;
+  border-right:2px solid currentColor;
+  pointer-events:none; z-index:1;
+  opacity:.6;
+}
+.player-card.p1::after { color:var(--gold3); }
+.player-card.p2::after { color:var(--ice2); }
+
+.player-header { display:flex; align-items:center; gap:16px; margin-bottom:20px; }
+.player-rank {
+  flex-shrink:0; position:relative;
+}
+.player-rank .rank-circle {
+  width:62px; height:62px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Cinzel', serif;
+  font-size:17px; font-weight:700; letter-spacing:2px;
+  line-height:1; text-align:center;
+  position:relative; cursor:pointer;
+}
+.player-rank .rank-circle:hover .initials-edit-hint {
+  opacity:1;
+}
+.initials-edit-hint {
+  position:absolute; inset:0; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.6); font-size:14px; opacity:0;
+  transition:opacity .2s;
+}
+.player-card.p1 .rank-circle {
+  background:radial-gradient(circle at 35% 35%, rgba(217,106,0,.22) 0%, rgba(100,40,0,.12) 100%);
+  border:1.5px solid rgba(217,106,0,.5);
+  color:var(--gold3);
+  box-shadow:0 0 24px rgba(217,106,0,.2), inset 0 1px 0 rgba(255,180,80,.15), 0 0 10px rgba(217,106,0,.25);
+}
+.player-card.p2 .rank-circle {
+  background:radial-gradient(circle at 35% 35%, rgba(0,174,221,.18) 0%, rgba(0,60,100,.1) 100%);
+  border:1.5px solid rgba(0,174,221,.4);
+  color:var(--ice2);
+  box-shadow:0 0 24px rgba(0,174,221,.18), inset 0 1px 0 rgba(100,220,255,.12), 0 0 10px rgba(0,174,221,.2);
+}
+.p1c { color:var(--gold2); } .p2c { color:var(--ice); }
+
+.player-name-wrap { flex:1; text-align:center; }
+.player-name {
+  font-family:'Cinzel', serif;
+  font-size:28px; font-weight:700; letter-spacing:4px;
+  text-transform:uppercase; line-height:1;
+  display:block;
+}
+.p1 .player-name, .player-card.p1 .player-name {
+  background: linear-gradient(135deg, var(--gold) 0%, #ffb060 40%, var(--gold3) 60%, var(--gold2) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  filter: drop-shadow(0 0 14px rgba(217,106,0,.55));
+}
+.p2 .player-name, .player-card.p2 .player-name {
+  background: linear-gradient(135deg, var(--ice) 0%, var(--ice2) 45%, #80e8ff 60%, var(--ice) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  filter: drop-shadow(0 0 14px rgba(0,174,221,.55));
+}
+.player-label {
+  font-family:'JetBrains Mono', monospace;
+  font-size:10px; color:var(--pewter); letter-spacing:3px; margin-top:5px;
+}
+
+.player-badge {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:12px; font-weight:700; letter-spacing:2px; padding:5px 14px;
+  border-radius:0; border:1px solid; text-transform:uppercase;
+  transition:all .2s;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px));
+}
+@keyframes rankUp {
+  0%   { transform:scale(.7) translateY(6px); opacity:0; }
+  50%  { transform:scale(1.15) translateY(-2px); }
+  100% { transform:scale(1) translateY(0); opacity:1; }
+}
+@keyframes rankUpGlow {
+  0%,100% { box-shadow:0 0 14px rgba(255,140,26,.2); }
+  40%     { box-shadow:0 0 28px rgba(255,200,50,.7), 0 0 8px rgba(255,200,50,.5); }
+}
+.badge-rankup { animation:rankUp .45s cubic-bezier(.34,1.56,.64,1) both, rankUpGlow 1s ease both !important; }
+.badge-leading {
+  color:var(--gold3); border-color:rgba(255,140,26,.4);
+  background:rgba(224,110,0,.12);
+  box-shadow:0 0 14px rgba(255,140,26,.2);
+  animation:shimmer 2.5s ease-in-out infinite;
+}
+.badge-trailing {
+  color:var(--ruby); border-color:rgba(204,0,51,.4);
+  background:rgba(200,0,40,.1);
+  box-shadow:0 0 14px rgba(200,0,40,.18);
+  animation:shimmer 2.5s ease-in-out infinite;
+}
+.badge-tie { color:var(--pewter); border-color:var(--rim); }
+
+.stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.stat-box {
+  background: linear-gradient(160deg, rgba(255,255,255,.03) 0%, rgba(0,0,0,.45) 100%);
+  border:1px solid var(--rim);
+  border-radius:0;
+  padding:16px 8px; text-align:center;
+  transition:border-color .2s, background .2s, transform .2s;
+  cursor:default;
+  position:relative;
+}
+.p1 .stat-box::before, .player-card.p1 .stat-box::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--gold2), transparent);
+  opacity:0; transition:opacity .2s;
+}
+.p2 .stat-box::before, .player-card.p2 .stat-box::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--ice), transparent);
+  opacity:0; transition:opacity .2s;
+}
+.stat-box:hover { border-color:var(--rim2); background:rgba(255,255,255,.05); transform:translateY(-2px); }
+.stat-box:hover::before { opacity:.9; }
+
+.stat-val {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:36px; font-weight:900; line-height:1; letter-spacing:1px;
+  animation:countUp .5s ease both;
+}
+.stat-lbl {
+  font-family:'JetBrains Mono', monospace;
+  font-size:8px; color:var(--silver); letter-spacing:1.5px; margin-top:7px;
+  text-transform:uppercase;
+}
+
+.edit-name-btn {
+  background:transparent; border:none; cursor:pointer;
+  font-size:12px; padding:3px 6px; border-radius:2px;
+  opacity:.25; transition:opacity .15s, background .15s;
+}
+.edit-name-btn:hover { opacity:1; background:rgba(255,255,255,.08); }
+
+.h2h-card { margin-bottom:0; }
+.h2h-legend { display:flex; align-items:center; gap:6px; margin-bottom:12px; }
+.h2h-dot { display:inline-block; width:10px; height:10px; border-radius:50%; }
+.p1-dot { background:var(--gold2); box-shadow:0 0 6px var(--gold-glow); }
+.p2-dot { background:var(--ice);   box-shadow:0 0 6px var(--ice-glow); }
+.h2h-name { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700; letter-spacing:2px; color:var(--silver); text-transform:uppercase; }
+.h2h-footer { display:flex; align-items:center; justify-content:center; gap:14px; margin-top:12px; padding-top:10px; border-top:1px solid var(--rim); }
+.h2h-stat { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:900; letter-spacing:2px; }
+.h2h-vs { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--pewter); letter-spacing:3px; }
+
+.best-session td { background:rgba(255,140,26,.06) !important; }
+.best-session:hover td { background:rgba(255,140,26,.1) !important; }
+.best-badge {
+  display:inline-block; color:var(--gold3); font-size:11px;
+  margin-left:4px; vertical-align:middle;
+  filter:drop-shadow(0 0 4px rgba(255,140,26,.6));
+  animation:shimmer 2s ease-in-out infinite;
+}
+
+/* ── TOOLTIPS ── */
+[data-tip] { position:relative; z-index:10; }
+[data-tip]:hover { z-index:200; }
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+  background:rgba(4,5,7,0.97); border:1px solid var(--gold-line);
+  color:var(--silver); font-family:'JetBrains Mono',monospace;
+  font-size:10px; letter-spacing:.5px; line-height:1.5;
+  padding:7px 12px; border-radius:0; white-space:nowrap;
+  pointer-events:none; z-index:200;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);
+}
+[data-tip]:hover::before {
+  content:''; position:absolute; bottom:calc(100% + 3px); left:50%; transform:translateX(-50%);
+  border:5px solid transparent; border-top-color:var(--gold-line);
+  pointer-events:none; z-index:200;
+}
+.compare-row {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:6px;
+  margin-top:8px; padding-top:8px;
+  border-top:1px solid var(--rim);
+}
+
+/* ── SHARED WINS BAR ── */
+.shared-wins-bar {
+  position:relative;
+  display:flex; align-items:center;
+  margin-bottom:28px;
+  padding:18px 28px;
+  height:96px;
+  background:linear-gradient(90deg, rgba(217,106,0,.10) 0%, rgba(245,137,15,.04) 35%, rgba(0,0,0,.2) 50%, rgba(0,174,221,.05) 75%, rgba(0,174,221,.08) 100%);
+  border:1px solid rgba(217,106,0,.18);
+  border-left:3px solid var(--gold2);
+  border-right:1px solid rgba(0,174,221,.15);
+  overflow:hidden;
+}
+.streak-badge {
+  display:flex; align-items:center; gap:5px;
+  background:rgba(255,140,26,.12);
+  border:1px solid rgba(255,140,26,.4);
+  padding:4px 12px; border-radius:0;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px));
+}
+@keyframes prGlow {
+  0%   { box-shadow: 0 0 0 0 rgba(255,215,0,0); background:transparent; }
+  20%  { box-shadow: 0 0 30px 8px rgba(255,215,0,.6); background:rgba(255,215,0,.08); }
+  60%  { box-shadow: 0 0 20px 4px rgba(255,215,0,.3); background:rgba(255,215,0,.04); }
+  100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); background:transparent; }
+}
+.pr-flash { animation: prGlow 1.4s ease both; }
+  0%   { filter: drop-shadow(0 0 0px transparent); }
+  30%  { filter: drop-shadow(0 0 22px currentColor); }
+  100% { filter: drop-shadow(0 0 0px transparent); }
+}
+@keyframes fireGrow {
+  0%,100% { transform:scale(1); }
+  50%     { transform:scale(1.25) translateY(-2px); }
+}
+@keyframes firePulse {
+  0%,100% { transform:scale(1); opacity:.85; }
+  50%     { transform:scale(1.1); opacity:1; }
+}
+.streak-fire { font-size:18px; display:inline-block; animation: firePulse 1.2s ease-in-out infinite; }
+.streak-fire.hot { animation: fireGrow .7s ease-in-out infinite; font-size:24px; }
+.streak-fire.inferno { animation: fireGrow .4s ease-in-out infinite; font-size:30px; }
+.card-flash-p1 { animation: cardFlash .7s ease-out both; color: var(--gold2); }
+.card-flash-p2 { animation: cardFlash .7s ease-out both; color: var(--ice); }
+.streak-val {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:26px; font-weight:900; color:var(--gold3);
+  text-shadow:0 0 10px rgba(255,140,26,.5);
+  line-height:1;
+}
+.streak-lbl {
+  font-family:'JetBrains Mono', monospace;
+  font-size:9px; color:var(--silver); letter-spacing:2px;
+  text-transform:uppercase;
+}
+.shared-wins-center {
+  position:absolute;
+  left:50.1%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  text-align:center;
+  pointer-events:none;
+}
+.shared-wins-sub {
+  position:absolute; right:24px; top:50%; transform:translateY(-50%);
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px; color:var(--silver); letter-spacing:1px;
+}
+.shared-wins-bar::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(90deg, transparent 30%, rgba(255,140,26,.03) 60%, transparent 100%);
+  animation:glimmer 5s linear infinite;
+  pointer-events:none;
+}
+.shared-wins-icon { font-size:28px; filter:drop-shadow(0 0 8px rgba(255,215,0,.4)); }
+.shared-wins-center { text-align:center; }
+.shared-wins-val {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:52px; font-weight:900; line-height:1; letter-spacing:2px;
+  background:linear-gradient(135deg, var(--gold) 0%, var(--gold3) 50%, var(--gold2) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 12px rgba(224,110,0,.5));
+}
+.shared-wins-lbl {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:13px; font-weight:700; letter-spacing:4px; color:var(--silver);
+  text-transform:uppercase; margin-top:2px;
+}
+.shared-wins-sub {
+  font-family:'JetBrains Mono', monospace;
+  font-size:11px; color:var(--silver); letter-spacing:1px;
+  white-space:nowrap;
+}
+.compare-box {
+  background:rgba(0,0,0,.2);
+  border:1px solid var(--rim);
+  padding:9px 6px; text-align:center;
+  border-radius:0;
+  transition:border-color .2s;
+}
+.compare-val {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:20px; font-weight:900; line-height:1; letter-spacing:1px;
+  transition:color .3s;
+}
+.compare-lbl {
+  font-family:'JetBrains Mono', monospace;
+  font-size:8px; color:var(--silver); letter-spacing:1.5px; margin-top:4px;
+  text-transform:uppercase;
+}
+/* better = emerald green, worse = ruby red, equal = pewter */
+.compare-val.better { color:var(--emerald); text-shadow:0 0 10px rgba(61,232,138,.35); }
+.compare-val.worse  { color:var(--ruby);    text-shadow:0 0 10px rgba(232,64,90,.3); }
+.compare-val.equal  { color:var(--pewter); }
+
+/* ═══════════════════════════════════════════════════
+   PERFORMANCE PANELS
+═══════════════════════════════════════════════════ */
+.perf-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+
+.perf-card {
+  background:linear-gradient(145deg, var(--surface2) 0%, var(--void) 60%, rgba(2,3,5,1) 100%);
+  border:1px solid var(--rim); padding:22px 24px;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  animation:fadeUp .6s .15s ease both;
+}
+.p1-perf { border-left:2px solid var(--gold2); }
+.p2-perf { border-left:2px solid var(--ice); }
+
+.perf-card-title {
+  font-family:'Cinzel', serif;
+  font-size:12px; font-weight:600; letter-spacing:3px;
+  text-transform:uppercase; margin-bottom:18px;
+}
+.perf-stats { display:flex; align-items:stretch; gap:0; }
+.perf-stat { flex:1; text-align:center; padding:8px 12px; }
+.perf-divider { width:1px; background:var(--rim); align-self:stretch; }
+
+.perf-val {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:36px; font-weight:900; line-height:1; letter-spacing:1px;
+}
+.perf-lbl {
+  font-family:'JetBrains Mono', monospace;
+  font-size:8px; color:var(--silver); letter-spacing:1.5px;
+  text-transform:uppercase; margin-top:6px;
+}
+.perf-sub {
+  font-family:'JetBrains Mono', monospace;
+  font-size:7px; color:var(--pewter); letter-spacing:1px; margin-top:2px;
+}
+
+/* ── PLACEMENT CARD ── */
+.placement-card {
+  background:linear-gradient(145deg, var(--surface2) 0%, var(--void) 60%, rgba(2,3,5,1) 100%);
+  border:1px solid var(--rim);
+  padding:20px 24px;
+  margin-bottom:28px;
+  animation:fadeUp .6s .2s ease both;
+}
+.placement-title {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:11px; font-weight:700; letter-spacing:4px;
+  color:var(--silver); text-transform:uppercase; margin-bottom:16px;
+}
+.placement-row {
+  display:grid; grid-template-columns:repeat(6,1fr); gap:8px;
+}
+.placement-item { text-align:center; }
+.placement-val        { font-family:'Barlow Condensed',sans-serif; font-size:34px; font-weight:900; line-height:1; letter-spacing:1px; color:var(--platinum); }
+.placement-val.gold   { background:linear-gradient(135deg,var(--gold) 0%,var(--gold3) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; filter:drop-shadow(0 0 8px rgba(224,110,0,.4)); }
+.placement-val.green  { color:var(--emerald); text-shadow:0 0 8px rgba(61,232,138,.3); }
+.placement-val.silver { color:var(--silver); }
+.placement-val.blue   { color:var(--ice); text-shadow:0 0 8px rgba(0,184,230,.25); }
+.placement-val.dim    { color:var(--pewter); }
+.placement-lbl {
+  font-family:'JetBrains Mono', monospace;
+  font-size:9px; color:var(--silver); letter-spacing:2px;
+  text-transform:uppercase; margin-top:5px;
+}
+
+/* ═══════════════════════════════════════════════════
+   TABLE
+═══════════════════════════════════════════════════ */
+.table-wrap {
+  border-radius:0; overflow:hidden;
+  border:1px solid var(--rim);
+  border-left:3px solid var(--gold2);
+  background:linear-gradient(145deg, var(--surface2) 0%, var(--void) 60%, rgba(2,3,5,1) 100%);
+  animation:fadeUp .6s .2s ease both;
+}
+
+table { width:100%; border-collapse:collapse; font-size:14px; }
+
+thead tr {
+  background: linear-gradient(90deg, var(--surface2) 0%, var(--surface3) 100%);
+  border-bottom:1px solid rgba(217,106,0,.2);
+}
+th {
+  padding:11px 14px; text-align:left;
+  font-family:'JetBrains Mono', sans-serif;
+  font-size:11px; font-weight:600; letter-spacing:3px; color:var(--pewter);
+  white-space:nowrap; text-transform:uppercase;
+}
+
+/* Colored column group backgrounds */
+th.col-p1, td.col-p1 { background: rgba(224,110,0,.04); }
+th.col-p1-last, td.col-p1-last {
+  background: rgba(224,110,0,.04);
+  border-right: 1px solid rgba(224,110,0,.2);
+}
+th.col-p2, td.col-p2 { background: rgba(0,184,230,.03); }
+th.col-p2-last, td.col-p2-last {
+  background: rgba(0,184,230,.03);
+  border-right: 1px solid rgba(0,184,230,.15);
+}
+
+/* Player group header cells */
+th.group-p1 {
+  color: var(--gold2); font-size:12px; letter-spacing:4px;
+  background: rgba(224,110,0,.08);
+  border-left: 2px solid var(--gold2);
+  border-right: 1px solid rgba(224,110,0,.2);
+  padding-top: 8px; padding-bottom: 8px;
+}
+th.group-p2 {
+  color: var(--ice); font-size:12px; letter-spacing:4px;
+  background: rgba(0,184,230,.06);
+  border-left: 2px solid var(--ice);
+  border-right: 1px solid rgba(0,184,230,.15);
+  padding-top: 8px; padding-bottom: 8px;
+}
+
+td { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.035); vertical-align:middle; }
+
+.session-row { cursor:pointer; transition:background .12s; }
+.session-row:hover td { filter:brightness(1.12); }
+.session-row.expanded td { border-bottom:none; }
+.session-row.expanded td:not(.col-p1):not(.col-p1-last):not(.col-p2):not(.col-p2-last) {
+  background: rgba(255,255,255,.02);
+}
+.session-row.expanded td.col-p1 { background: rgba(224,110,0,.07); }
+.session-row.expanded td.col-p1-last { background: rgba(224,110,0,.07); border-right:1px solid rgba(224,110,0,.2); }
+.session-row.expanded td.col-p2 { background: rgba(0,184,230,.05); }
+.session-row.expanded td.col-p2-last { background: rgba(0,184,230,.05); border-right:1px solid rgba(0,184,230,.15); }
+
+.game-sub-row td {
+  background:rgba(0,0,0,.3); font-size:12px;
+  border-bottom:1px solid rgba(255,255,255,.02);
+  animation:rowIn .18s ease both;
+}
+.game-sub-row td.col-p1 { background:rgba(224,110,0,.05); }
+.game-sub-row td.col-p1-last { background:rgba(224,110,0,.05); border-right:1px solid rgba(224,110,0,.15); }
+.game-sub-row td.col-p2 { background:rgba(0,184,230,.03); }
+.game-sub-row td.col-p2-last { background:rgba(0,184,230,.03); border-right:1px solid rgba(0,184,230,.12); }
+.game-sub-row:last-of-type td { border-bottom:2px solid var(--smoke); }
+
+.expand-icon {
+  display:inline-block; transition:transform .25s cubic-bezier(.4,0,.2,1);
+  font-size:10px; color:var(--pewter);
+}
+.expanded .expand-icon { transform:rotate(90deg); color:var(--gold2); }
+
+.winner-cell {
+  font-family:'Barlow Condensed', sans-serif; font-size:14px;
+  font-weight:700; letter-spacing:2px;
+}
+.win-p1 { color:var(--gold2); } .win-p2 { color:var(--ice); } .win-tie { color:var(--pewter); }
+
+.place-badge {
+  display:inline-block; padding:2px 8px;
+  font-family:'JetBrains Mono', monospace; font-size:9px; letter-spacing:1px;
+  border-radius:0;
+}
+.place-1 {
+  color:var(--gold3); border:1px solid rgba(255,140,26,.35);
+  background:rgba(224,110,0,.12);
+  box-shadow:0 0 6px rgba(255,140,26,.12);
+}
+.place-top5 { color:var(--emerald); border:1px solid rgba(61,232,138,.3); background:rgba(61,232,138,.07); }
+.place-other { color:var(--pewter); border:1px solid var(--rim); }
+
+.games-badge {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:11px; font-weight:600; color:var(--silver); letter-spacing:1px;
+  padding:3px 10px; border-radius:0;
+  border:1px solid var(--rim); background:rgba(255,255,255,.02);
+}
+
+.no-data {
+  text-align:center; padding:56px 20px;
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:13px; font-weight:600; color:var(--smoke); letter-spacing:5px;
+  text-transform:uppercase;
+}
+
+/* ═══════════════════════════════════════════════════
+   ADD PANEL (RIGHT COLUMN — ALWAYS VISIBLE)
+═══════════════════════════════════════════════════ */
+.filter-bar {
+  position:sticky; top:70px; z-index:49;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:10px 36px;
+  background:rgba(4,5,7,0.97);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--rim);
+}
+.filter-group { display:flex; align-items:center; gap:7px; }
+.filter-label {
+  font-family:'JetBrains Mono', monospace;
+  font-size:9px; letter-spacing:2.5px; color:var(--pewter);
+  text-transform:uppercase; margin-right:4px;
+}
+.filter-sep { width:1px; height:22px; background:var(--rim); }
+
+.add-panel {
+  width:310px; flex-shrink:0;
+  position:sticky; top:118px;
+  height:calc(100vh - 118px); overflow-y:auto;
+  border-left:1px solid rgba(217,106,0,.15);
+  background:linear-gradient(180deg, #04060a 0%, #020305 100%);
+  padding:28px 22px 32px;
+  display:flex; flex-direction:column;
+  z-index:1; animation:fadeIn .7s .2s ease both;
+}
+
+.add-panel::before {
+  content:''; position:absolute; top:0; left:-1px; bottom:0; width:2px;
+  background:linear-gradient(180deg, transparent 0%, var(--gold2) 20%, var(--gold) 50%, var(--gold2) 80%, transparent 100%);
+  opacity:.3; animation:shimmer 5s ease-in-out infinite;
+}
+
+.add-panel-title {
+  font-family:'Cinzel', serif;
+  font-size:18px; font-weight:700; letter-spacing:4px;
+  background:linear-gradient(135deg, var(--gold) 0%, #ffb060 40%, var(--gold3) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  margin-bottom:3px; text-transform:uppercase;
+}
+.add-panel-sub {
+  font-family:'JetBrains Mono', monospace;
+  font-size:11px; color:var(--pewter); letter-spacing:1.5px;
+  margin-bottom:22px;
+}
+.add-panel-divider {
+  height:1px;
+  background:linear-gradient(90deg, var(--gold-line) 0%, transparent 100%);
+  margin:14px 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   FORM FIELDS
+═══════════════════════════════════════════════════ */
+.field { margin-bottom:14px; }
+label {
+  display:block;
+  font-family:'JetBrains Mono', monospace;
+  font-size:9px; color:var(--pewter); letter-spacing:2.5px;
+  margin-bottom:7px; text-transform:uppercase;
+}
+
+input[type="number"], input[type="text"], select {
+  width:100%;
+  background:rgba(0,0,0,.55);
+  border:1px solid var(--rim);
+  border-radius:0;
+  color:var(--platinum);
+  font-family:'JetBrains Mono', monospace;
+  font-size:14px; padding:10px 13px;
+  outline:none;
+  transition:border-color .2s, box-shadow .2s, background .2s;
+  -webkit-appearance:none;
+}
+input:focus, select:focus {
+  border-color:rgba(224,110,0,.55);
+  background:rgba(224,110,0,.04);
+  box-shadow:0 0 0 2px rgba(224,110,0,.1), 0 0 18px rgba(224,110,0,.07);
+}
+select option { background:#0a0c10; }
+
+/* mode toggle buttons */
+.mode-btn {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:12px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase;
+  padding:10px 14px; border-radius:0;
+  border:1px solid var(--rim);
+  background:linear-gradient(160deg, rgba(255,255,255,.03) 0%, rgba(0,0,0,.5) 100%);
+  color:var(--pewter); cursor:pointer;
+  transition:all .18s; flex:1; text-align:center;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px));
+}
+.mode-btn:hover { border-color:var(--rim2); color:var(--platinum); background:rgba(255,255,255,.05); }
+.mode-btn.active {
+  background:linear-gradient(135deg, rgba(185,85,0,.2) 0%, rgba(217,106,0,.12) 100%);
+  border-color:rgba(217,106,0,.55);
+  color:var(--gold3);
+  box-shadow:0 0 20px rgba(217,106,0,.2), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* player label in form */
+.modal-player-label {
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:15px; font-weight:900; letter-spacing:3px;
+  margin-bottom:12px; padding-bottom:8px;
+  border-bottom:1px solid var(--rim);
+  text-transform:uppercase;
+}
+.p1label { color:var(--gold2); } .p2label { color:var(--ice); }
+
+.modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+.modal-footer {
+  margin-top:auto; padding-top:16px;
+  border-top:1px solid var(--rim);
+}
+.modal-footer .btn-primary {
+  width:100%; font-size:14px; padding:14px;
+  letter-spacing:4px;
+}
+
+.pos-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+.pos-btn {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 9px 4px;
+  border: 1px solid var(--rim);
+  background: linear-gradient(160deg, rgba(255,255,255,.03) 0%, rgba(0,0,0,.5) 100%);
+  color: var(--pewter); cursor: pointer;
+  transition: all .15s; text-align: center;
+  border-radius: 0;
+}
+.pos-btn:hover { border-color:var(--rim2); color:var(--platinum); background:rgba(255,255,255,.05); }
+.pos-btn.active {
+  background: linear-gradient(135deg, rgba(185,85,0,.2) 0%, rgba(217,106,0,.12) 100%);
+  border-color: rgba(217,106,0,.55);
+  color: var(--gold3);
+  box-shadow: 0 0 16px rgba(217,106,0,.2), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.mode-filter-btn {
+  font-family:'JetBrains Mono', monospace;
+  font-size:10px; font-weight:500; letter-spacing:2px; text-transform:uppercase;
+  padding:5px 14px; border-radius:0;
+  border:1px solid var(--rim); background:rgba(0,0,0,.3);
+  color:var(--pewter); cursor:pointer; transition:all .15s;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+}
+.mode-filter-btn:hover { color:var(--platinum); border-color:var(--rim2); background:rgba(255,255,255,.04); }
+.mode-filter-btn.active {
+  background:linear-gradient(135deg, rgba(185,85,0,.18) 0%, rgba(217,106,0,.10) 100%);
+  border-color:rgba(217,106,0,.5);
+  color:var(--gold3); box-shadow:0 0 12px rgba(217,106,0,.18);
+}
+
+.legend-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 14px;
+  padding: 9px 14px;
+  background: rgba(224,110,0,.05);
+  border: 1px solid var(--gold-line);
+  border-left: 3px solid var(--gold2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+}
+.legend-icon { color: var(--gold2); font-size: 11px; }
+.legend-text { color: var(--gold2); letter-spacing: 2px; text-transform: uppercase; font-size: 9px; font-weight: 500; }
+.legend-sep { color: var(--smoke); }
+.legend-item { color: var(--pewter); }
+.legend-accent { color: var(--platinum); }
+
+/* ── STREAK BARS ── */
+@keyframes glitchBar {
+  0%,95%,100%{ transform:translateX(0) } 96%{ transform:translateX(-3px) } 97%{ transform:translateX(2px) } 98%{ transform:translateX(-1px) }
+}
+@keyframes hbScroll { 0%{ transform:translateX(0) } 100%{ transform:translateX(-50%) } }
+
+.streak-bar {
+  margin-bottom:14px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:12px; font-weight:700; letter-spacing:3px; text-transform:uppercase;
+  border-left:3px solid; display:flex; align-items:center;
+  position:relative; overflow:hidden; height:34px;
+}
+.streak-bar.p1-streak, .streak-bar.p2-streak {
+  background: #0a0300;
+  border-color: rgba(255,120,0,.6);
+  border-top: 1px solid rgba(255,120,0,.2);
+  border-bottom: 1px solid rgba(255,120,0,.2);
+  color: #ff8c1a;
+  padding:0;
+}
+.streak-bar.p2-streak {
+  background: #000a0f;
+  border-color: rgba(0,174,221,.5);
+  border-top: 1px solid rgba(0,174,221,.2);
+  border-bottom: 1px solid rgba(0,174,221,.2);
+  color: var(--ice2);
+}
+.streak-bar.lose-streak {
+  background: rgba(20,0,8,.7);
+  border-color: #cc0033;
+  border-top: 1px solid rgba(204,0,51,.2);
+  border-bottom: 1px solid rgba(204,0,51,.2);
+  color: #ff2255;
+  animation: glitchBar 3.5s ease-in-out infinite;
+  padding-left: 0;
+}
+.streak-bar.lose-streak::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:50%;
+  background: linear-gradient(90deg, rgba(20,0,8,.98) 65%, transparent 100%);
+  z-index:1; pointer-events:none;
+}
+.hb-track {
+  position:absolute; left:0; top:0; width:200%; height:100%;
+  display:flex; align-items:center;
+  animation: hbScroll 8s linear infinite;
+  pointer-events:none;
+}
+.hb-track svg { width:50%; height:100%; flex-shrink:0; }
+.streak-content { position:relative; z-index:2; display:flex; align-items:center; gap:8px; padding-left:12px; }
+.flame-canvas { position:absolute; left:0; top:0; pointer-events:none; }
+.flame-fade {
+  position:absolute; left:0; top:0; bottom:0; width:46%;
+  background: linear-gradient(90deg, rgba(10,3,0,1) 55%, transparent 100%);
+  z-index:1; pointer-events:none;
+}
+.flame-text { position:relative; z-index:2; padding-left:14px; display:flex; align-items:center; gap:8px; text-shadow:0 0 10px rgba(255,120,0,.7); }
+.panel-section { margin-bottom:16px; }
+.panel-section-label {
+  font-family:'JetBrains Mono', monospace;
+  font-size:9px; color:var(--pewter); letter-spacing:2.5px;
+  text-transform:uppercase; margin-bottom:8px;
+}
+.panel-select-big {
+  width:100%; background:rgba(0,0,0,.55); border:1px solid var(--rim);
+  border-radius:0; color:var(--platinum);
+  font-family:'Barlow Condensed', sans-serif; font-size:16px;
+  font-weight:600; letter-spacing:1px;
+  padding:12px 14px; outline:none; -webkit-appearance:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+.panel-select-big:focus {
+  border-color:rgba(224,110,0,.55);
+  box-shadow:0 0 0 2px rgba(224,110,0,.1);
+}
+
+/* ── PLAYER INPUT BLOCKS ── */
+.player-input-block {
+  border:1px solid var(--rim);
+  margin-bottom:12px;
+  position:relative; overflow:hidden;
+}
+.p1-block {
+  border-left:2px solid var(--gold2);
+  background:linear-gradient(160deg, rgba(217,106,0,.06) 0%, rgba(0,0,0,.3) 100%);
+}
+.p2-block {
+  border-left:2px solid var(--ice);
+  background:linear-gradient(160deg, rgba(0,174,221,.05) 0%, rgba(0,0,0,.3) 100%);
+}
+
+.pib-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px 8px;
+  border-bottom:1px solid var(--rim);
+}
+.pib-name {
+  font-family:'Cinzel', serif;
+  font-size:14px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+}
+.pib-tag {
+  font-family:'JetBrains Mono', monospace;
+  font-size:8px; letter-spacing:2px; color:var(--gold2);
+  border:1px solid rgba(217,106,0,.3); padding:2px 8px;
+}
+
+.pib-stats { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+.pib-stat { padding:10px 14px; }
+.p1-block .pib-stat:first-child { border-right:1px solid var(--rim); }
+.p2-block .pib-stat:first-child { border-right:1px solid var(--rim); }
+.pib-stat-label {
+  font-family:'JetBrains Mono', monospace;
+  font-size:8px; color:var(--pewter); letter-spacing:2px;
+  text-transform:uppercase; margin-bottom:6px;
+}
+.pib-input {
+  width:100%; background:transparent; border:none;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  color:var(--platinum);
+  font-family:'Barlow Condensed', sans-serif;
+  font-size:30px; font-weight:900; letter-spacing:1px;
+  padding:4px 0 6px; outline:none;
+  transition:border-color .2s;
+}
+.p1-block .pib-input:focus { border-color:rgba(217,106,0,.7); }
+.p2-block .pib-input:focus { border-color:rgba(0,174,221,.7); }
+.pib-input::placeholder { color:var(--smoke); }
+
+/* ═══════════════════════════════════════════════════
+   RENAME MODAL
+═══════════════════════════════════════════════════ */
+.rename-overlay {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.88);
+  backdrop-filter:blur(12px);
+  display:flex; align-items:center; justify-content:center;
+  z-index:200; opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.rename-overlay.open { opacity:1; pointer-events:all; }
+
+.rename-box {
+  background:linear-gradient(145deg, var(--surface2) 0%, var(--void) 60%, rgba(2,3,5,1) 100%);
+  border:1px solid rgba(217,106,0,.25);
+  border-radius:0;
+  padding:32px 34px; width:360px;
+  box-shadow:0 40px 100px rgba(0,0,0,.9), 0 0 40px rgba(217,106,0,.08);
+  transform:translateY(14px) scale(.97); transition:transform .22s;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+.rename-overlay.open .rename-box { transform:translateY(0) scale(1); }
+
+.rename-title {
+  font-family:'Cinzel', serif;
+  font-size:10px; font-weight:600; letter-spacing:4px;
+  color:var(--gold3); text-transform:uppercase; margin-bottom:20px;
+  text-shadow: 0 0 14px rgba(245,137,15,.3);
+}
+.rename-box input {
+  width:100%;
+  background:rgba(0,0,0,.6); border:1px solid var(--rim); border-radius:0;
+  color:var(--platinum);
+  font-family:'Cinzel', serif;
+  font-size:20px; font-weight:700; letter-spacing:4px; text-transform:uppercase;
+  padding:12px 14px; outline:none; margin-bottom:20px;
+  transition:border-color .2s, box-shadow .2s;
+}
+.rename-box input:focus {
+  border-color:rgba(217,106,0,.6);
+  box-shadow:0 0 0 2px rgba(217,106,0,.1), 0 0 20px rgba(217,106,0,.06);
+}
+.rename-footer { display:flex; gap:10px; justify-content:flex-end; }
+
+/* ═══════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════ */
+.toast {
+  position:fixed; bottom:32px; right:32px;
+  background:linear-gradient(135deg, var(--surface3), #080e06);
+  border:1px solid rgba(46,232,122,.3);
+  border-left:3px solid var(--emerald);
+  border-radius:0;
+  color:var(--emerald);
+  font-family:'JetBrains Mono', monospace;
+  font-size:11px; font-weight:500; letter-spacing:2px; text-transform:uppercase;
+  padding:13px 24px; z-index:400;
+  opacity:0; pointer-events:none;
+  box-shadow:0 16px 50px rgba(0,0,0,.7), 0 0 24px rgba(46,232,122,.07);
+  transition:opacity .1s;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+.toast.show {
+  opacity:1;
+  animation:toastIn .35s ease both;
+}
+.undo-toast {
+  position:fixed; bottom:32px; right:32px;
+  background:linear-gradient(135deg, var(--surface3), #0e0608);
+  border:1px solid rgba(224,48,80,.3);
+  border-left:3px solid var(--ruby);
+  border-radius:0;
+  color:var(--platinum);
+  font-family:'JetBrains Mono', monospace;
+  font-size:11px; font-weight:500; letter-spacing:1.5px; text-transform:uppercase;
+  padding:13px 18px 13px 22px; z-index:401;
+  display:flex; align-items:center; gap:16px;
+  opacity:0; pointer-events:none;
+  box-shadow:0 16px 50px rgba(0,0,0,.7), 0 0 24px rgba(224,48,80,.07);
+  transition:opacity .15s;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+}
+.undo-toast.show { opacity:1; animation:toastIn .35s ease both; pointer-events:all; }
+.undo-btn {
+  font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase;
+  background:rgba(232,64,90,.15); border:1px solid rgba(232,64,90,.5);
+  color:var(--ruby); padding:4px 14px; cursor:pointer;
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+  transition:background .15s;
+}
+.undo-btn:hover { background:rgba(232,64,90,.3); }
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════ */
+@media (max-width:900px) {
+  .players-grid  { grid-template-columns:1fr; }
+  .charts-grid   { grid-template-columns:1fr; }
+  .stats-row     { grid-template-columns:repeat(3,1fr); }
+  .add-panel     { width:280px; }
+}
+@media (max-width:700px) {
+  .app-layout    { flex-direction:column; }
+  .add-panel     { width:100%; height:auto; position:static; border-left:none; border-top:1px solid var(--gold-line); }
+  header         { padding:0 16px; }
+  .content-area  { padding:20px 14px 40px; }
+  .modal-grid    { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════ -->
+<header>
+  <div class="logo-wrap">
+    <div class="logo">Warzone Tracker</div>
+    <div class="logo-sep"></div>
+    <div class="logo-sub">Combat Stats</div>
+  </div>
+  <div class="header-right">
+    <span class="session-count" id="sessionCount">0 sessies</span>
+    <div style="display:flex;align-items:center;gap:5px" title="Achtergrond kiezen">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--pewter);letter-spacing:2px;text-transform:uppercase;margin-right:2px">BG</span>
+      <button class="bg-dot bg-dot-default active" onclick="setBg('default')" title="Standaard"></button>
+      <button class="bg-dot bg-dot-grid"    onclick="setBg('grid')"    title="Grid"></button>
+      <button class="bg-dot bg-dot-camo"    onclick="setBg('camo')"    title="Camouflage"></button>
+      <button class="bg-dot bg-dot-hex"     onclick="setBg('hex')"     title="Hexagoon"></button>
+      <button class="bg-dot bg-dot-topo"    onclick="setBg('topography')" title="Topografie"></button>
+      <button class="bg-dot bg-dot-circuit" onclick="setBg('circuit')" title="Circuit"></button>
+    </div>
+    <div class="view-toggle">
+      <button class="toggle-btn active" id="toggleSession" onclick="setView('session')">Per Session</button>
+      <button class="toggle-btn"        id="toggleTotal"   onclick="setView('total')">Total</button>
+    </div>
+  </div>
+</header>
+
+<!-- GLOBAL FILTER BAR -->
+<div class="filter-bar">
+  <div class="filter-group">
+    <span class="filter-label">Mode</span>
+    <button class="mode-filter-btn active" id="mf-all" onclick="setModeFilter('all')">All</button>
+    <button class="mode-filter-btn" id="mf-br"  onclick="setModeFilter('Battle Royale')">Battle Royale</button>
+    <button class="mode-filter-btn" id="mf-re"  onclick="setModeFilter('Resurgence')">Resurgence</button>
+  </div>
+  <div class="filter-sep"></div>
+  <div class="filter-group">
+    <span class="filter-label">Period</span>
+    <button class="mode-filter-btn active" id="df-all"   onclick="setDateFilter('all')">All</button>
+    <button class="mode-filter-btn" id="df-today" onclick="setDateFilter('today')">Today</button>
+    <button class="mode-filter-btn" id="df-week"  onclick="setDateFilter('week')">This week</button>
+    <button class="mode-filter-btn" id="df-month" onclick="setDateFilter('month')">This month</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     APP LAYOUT
+═══════════════════════════════════════════════ -->
+<div class="app-layout">
+
+<!-- ── LEFT: CONTENT ── -->
+<div class="content-area">
+
+  <!-- LEADERBOARD -->
+  <div class="section-header" style="animation:fadeUp .5s .05s ease both">
+    <div class="section-title">Leaderboard</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="players-grid">
+    <!-- P1 -->
+    <div class="player-card p1">
+      <div class="player-header">
+        <div class="player-rank p1c">
+          <div class="rank-circle" onclick="openInitialsEdit(0)" title="Edit initials">
+            <span id="initials1">JB</span>
+            <div class="initials-edit-hint">✎</div>
+          </div>
+        </div>
+        <div class="player-name-wrap">
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+            <span class="player-name" id="name1display">Joost</span>
+            <button class="edit-name-btn" style="color:var(--gold2)" onclick="openRename(0)" title="Naam aanpassen">✎</button>
+          </div>
+        </div>
+        <span class="player-badge badge-leading" id="badge1">Leading</span>
+      </div>
+      <div id="streak1" class="streak-bar" style="display:none"></div>
+      <div class="stats-row">
+        <div class="stat-box" data-tip="K/D of all games in today's session"><div class="stat-val p1c" id="kd1">0.00</div><div class="stat-lbl">Session K/D</div></div>
+        <div class="stat-box" data-tip="Avg kills per game today"><div class="stat-val p1c" id="avgkills1">0.0</div><div class="stat-lbl">Session Avg Kills</div></div>
+        <div class="stat-box" data-tip="Games won on most kills today"><div class="stat-val p1c" id="sessgamewins1">0</div><div class="stat-lbl">Session Wins</div></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-box" data-tip="K/D ratio over all games ever"><div class="compare-val" id="at-kd1">0.00</div><div class="compare-lbl">All Time K/D</div></div>
+        <div class="compare-box" data-tip="Avg kills per game across all sessions"><div class="compare-val" id="at-avgkills1">0.0</div><div class="compare-lbl">Avg Kills</div></div>
+        <div class="compare-box" data-tip="Total aantal potjes gewonnen op meeste kills"><div class="compare-val" id="at-gamewins1">0</div><div class="compare-lbl">Game Wins</div></div>
+      </div>
+    </div>
+    <!-- P2 -->
+    <div class="player-card p2">
+      <div class="player-header">
+        <div class="player-rank p2c">
+          <div class="rank-circle" onclick="openInitialsEdit(1)" title="Edit initials">
+            <span id="initials2">BL</span>
+            <div class="initials-edit-hint">✎</div>
+          </div>
+        </div>
+        <div class="player-name-wrap">
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+            <span class="player-name" id="name2display">Vriend</span>
+            <button class="edit-name-btn" style="color:var(--ice)" onclick="openRename(1)" title="Naam aanpassen">✎</button>
+          </div>
+        </div>
+        <span class="player-badge badge-trailing" id="badge2">Trailing</span>
+      </div>
+      <div id="streak2" class="streak-bar" style="display:none"></div>
+      <div class="stats-row">
+        <div class="stat-box" data-tip="K/D of all games in today's session"><div class="stat-val p2c" id="kd2">0.00</div><div class="stat-lbl">Session K/D</div></div>
+        <div class="stat-box" data-tip="Avg kills per game today"><div class="stat-val p2c" id="avgkills2">0.0</div><div class="stat-lbl">Session Avg Kills</div></div>
+        <div class="stat-box" data-tip="Games won on most kills today"><div class="stat-val p2c" id="sessgamewins2">0</div><div class="stat-lbl">Session Wins</div></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-box" data-tip="K/D ratio over all games ever"><div class="compare-val" id="at-kd2">0.00</div><div class="compare-lbl">All Time K/D</div></div>
+        <div class="compare-box" data-tip="Avg kills per game across all sessions"><div class="compare-val" id="at-avgkills2">0.0</div><div class="compare-lbl">Avg Kills</div></div>
+        <div class="compare-box" data-tip="Total aantal potjes gewonnen op meeste kills"><div class="compare-val" id="at-gamewins2">0</div><div class="compare-lbl">Game Wins</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GEDEELDE STAT: #1 FINISHES -->
+  <div class="shared-wins-bar">
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <div class="shared-wins-icon">🏆</div>
+      <div class="streak-badge" id="streak-badge" style="display:none">
+        <span class="streak-fire">🔥</span>
+        <span class="streak-val" id="streak-val">0</span>
+        <span class="streak-lbl">streak</span>
+      </div>
+    </div>
+    <div class="shared-wins-center">
+      <div class="shared-wins-val" id="shared-wins">0</div>
+      <div class="shared-wins-lbl">Games won together</div>
+    </div>
+    <div class="shared-wins-sub" id="shared-wins-sub">0 of 0 games ending at #1</div>
+  </div>
+
+  <!-- PERFORMANCE STATS -->
+  <div class="section-header" style="animation:fadeUp .5s .1s ease both">
+    <div class="section-title">Performance</div>
+    <div class="section-line"></div>
+  </div>
+
+  <!-- Per speler stats -->
+  <div class="perf-grid">
+    <!-- P1 -->
+    <div class="perf-card p1-perf">
+      <div class="perf-card-title p1c" id="perf-name1">Joost</div>
+      <div class="perf-stats">
+        <div class="perf-stat">
+          <div class="perf-val p1c" id="perf-maxkills1">0</div>
+          <div class="perf-lbl">Highest kills</div>
+          <div class="perf-sub">in 1 game</div>
+        </div>
+        <div class="perf-divider"></div>
+        <div class="perf-stat">
+          <div class="perf-val p1c" id="perf-maxkd1">0.00</div>
+          <div class="perf-lbl">Highest K/D</div>
+          <div class="perf-sub">in 1 game</div>
+        </div>
+        <div class="perf-divider"></div>
+        <div class="perf-stat">
+          <div class="perf-val p1c" id="perf-avgkills1">0.0</div>
+          <div class="perf-lbl">Avg kills</div>
+          <div class="perf-sub">per game</div>
+        </div>
+        <div class="perf-divider"></div>
+        <div class="perf-stat">
+          <div class="perf-val p1c" id="perf-avgplace1">—</div>
+          <div class="perf-lbl">Avg position</div>
+          <div class="perf-sub">per game</div>
+        </div>
+      </div>
+    </div>
+    <!-- P2 -->
+    <div class="perf-card p2-perf">
+      <div class="perf-card-title p2c" id="perf-name2">Vriend</div>
+      <div class="perf-stats">
+        <div class="perf-stat">
+          <div class="perf-val p2c" id="perf-maxkills2">0</div>
+          <div class="perf-lbl">Highest kills</div>
+          <div class="perf-sub">in 1 game</div>
+        </div>
+        <div class="perf-divider"></div>
+        <div class="perf-stat">
+          <div class="perf-val p2c" id="perf-maxkd2">0.00</div>
+          <div class="perf-lbl">Highest K/D</div>
+          <div class="perf-sub">in 1 game</div>
+        </div>
+        <div class="perf-divider"></div>
+        <div class="perf-stat">
+          <div class="perf-val p2c" id="perf-avgkills2">0.0</div>
+          <div class="perf-lbl">Avg kills</div>
+          <div class="perf-sub">per game</div>
+        </div>
+        <div class="perf-divider"></div>
+        <div class="perf-stat">
+          <div class="perf-val p2c" id="perf-avgplace2">—</div>
+          <div class="perf-lbl">Avg position</div>
+          <div class="perf-sub">per game</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Samen eindposities -->
+  <div class="section-header" style="animation:fadeUp .6s .2s ease both">
+    <div class="section-title">Ranking</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="perf-card" style="margin-bottom:28px;clip-path:none;border-left:3px solid var(--gold2)">
+    <div class="placement-row">
+      <div class="placement-item">
+        <div class="placement-val gold" id="pl-1">0</div>
+        <div class="placement-lbl">#1 🏆</div>
+      </div>
+      <div class="placement-item">
+        <div class="placement-val green" id="pl-top5">0</div>
+        <div class="placement-lbl">Top 5</div>
+      </div>
+      <div class="placement-item">
+        <div class="placement-val blue" id="pl-top10">0</div>
+        <div class="placement-lbl">Top 10</div>
+      </div>
+      <div class="placement-item">
+        <div class="placement-val silver" id="pl-top20">0</div>
+        <div class="placement-lbl">Top 20</div>
+      </div>
+      <div class="placement-item">
+        <div class="placement-val dim" id="pl-rest">0</div>
+        <div class="placement-lbl">#20+</div>
+      </div>
+      <div class="placement-item">
+        <div class="placement-val" id="pl-total">0</div>
+        <div class="placement-lbl">Total</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SESSIE OVERZICHT CHART -->
+  <div class="section-header" style="animation:fadeUp .6s .25s ease both;align-items:center">
+    <div class="section-title" style="flex-shrink:0">Head-to-Head</div>
+    <div class="section-line" style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:16px;flex-shrink:0">
+      <span style="display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--silver)">
+        <span style="width:9px;height:9px;border-radius:2px;background:var(--gold2);display:inline-block;opacity:.7"></span>
+        <span style="width:18px;height:2px;background:var(--gold2);display:inline-block;border-radius:1px"></span>
+        <span id="combo-lbl1">Joost</span>
+      </span>
+      <span style="display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--silver)">
+        <span style="width:9px;height:9px;border-radius:2px;background:var(--ice);display:inline-block;opacity:.7"></span>
+        <span style="width:18px;height:0;border-top:2px dashed var(--ice);display:inline-block"></span>
+        <span id="combo-lbl2">Vriend</span>
+      </span>
+      <span style="display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--silver)">
+        <span style="width:14px;height:2px;border-radius:1px;background:var(--emerald);display:inline-block"></span>K/D boven gem.
+      </span>
+      <span style="display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--silver)">
+        <span style="width:14px;height:2px;border-radius:1px;background:var(--ruby);display:inline-block"></span>K/D onder gem.
+      </span>
+    </div>
+  </div>
+  <div class="perf-card" style="margin-bottom:16px;clip-path:none;border-left:3px solid var(--gold2)">
+    <div style="position:relative;height:260px"><canvas id="comboChart"></canvas></div>
+  </div>
+
+  <div class="section-header" style="animation:fadeUp .5s .15s ease both;align-items:center">
+    <div class="section-title" id="logTitle">Session Log</div>
+    <div class="section-line"></div>
+    <div style="display:flex;gap:6px;flex-shrink:0;height:28px">
+      <button class="btn btn-ghost" onclick="exportData()" style="font-size:10px;padding:0 14px;height:28px">↑ Export</button>
+      <label class="btn btn-ghost" style="font-size:10px;padding:0 14px;cursor:pointer;height:28px;display:flex;align-items:center;justify-content:center">↓ Import<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+      <button class="btn btn-ghost" onclick="clearAll()" style="font-size:10px;padding:0 14px;height:28px;color:var(--ruby);border-color:rgba(232,64,90,.25)">Clear</button>
+    </div>
+  </div>
+
+  <!-- LEGENDA -->
+  <div class="legend-bar">
+    <span class="legend-icon">⚡</span>
+    <span class="legend-text">Game Wins</span>
+    <span class="legend-sep">·</span>
+    <span class="legend-item">most <span class="legend-accent">Kills</span> wins</span>
+    <span class="legend-sep">·</span>
+    <span class="legend-item">equal kills: <span class="legend-accent">K/D</span> decides</span>
+    <span class="legend-sep">·</span>
+    <span class="legend-item">equal K/D: <span class="legend-accent">Tie</span></span>
+    <span class="legend-sep">·</span>
+    <span class="legend-item">Session winner = most <span class="legend-accent">games won</span></span>
+  </div>
+
+  <!-- PER SESSIE VIEW -->
+  <div id="viewSession">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:34px;background:var(--surface2)"></th>
+            <th style="width:108px;background:var(--surface2)">Date</th>
+            <th style="width:88px;background:var(--surface2)">Games</th>
+            <th style="width:90px;background:var(--surface2)">Wins</th>
+            <th class="group-p1" style="width:76px" id="th1">— Kills</th>
+            <th class="col-p1-last" style="width:72px">K/D</th>
+            <th class="group-p2" style="width:76px" id="th2">— Kills</th>
+            <th class="col-p2-last" style="width:72px">K/D</th>
+            <th style="width:120px;background:var(--surface2)">Winner</th>
+            <th style="width:46px;background:var(--surface2)"></th>
+          </tr>
+        </thead>
+        <tbody id="sessionBody"></tbody>
+      </table>
+      <div class="no-data" id="noDataSession" style="display:none">No sessions logged</div>
+    </div>
+  </div>
+
+  <!-- TOTAAL VIEW -->
+  <div id="viewTotal" style="display:none">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Player</th><th>Sessions</th>
+          <th>Kills</th><th>Deaths</th><th>K/D</th><th>Best K/D</th>
+          <th>#1 Finishes</th><th>Game Wins</th><th>Session Wins</th>
+        </tr></thead>
+        <tbody id="totalBody"></tbody>
+      </table>
+      <div class="no-data" id="noDataTotal" style="display:none">No data</div>
+    </div>
+  </div>
+
+</div><!-- /content-area -->
+
+<!-- ── RIGHT: ADD PANEL ── -->
+<div class="add-panel">
+  <div class="add-panel-title">New game</div>
+  <div style="margin-bottom:20px">
+    <div class="add-panel-sub" id="panelDateLabel" style="margin-bottom:8px">Today's session</div>
+    <button type="button" class="btn btn-ghost" onclick="startNieuweSessie()" style="font-size:10px;padding:4px 12px;height:auto;width:100%">+ New session</button>
+  </div>
+
+  <!-- POSITIE -->
+  <div class="panel-section">
+    <div class="panel-section-label">Final position</div>
+    <div class="pos-grid">
+      <button type="button" class="pos-btn" onclick="selectPlace(1)">🏆 #1</button>
+      <button type="button" class="pos-btn" onclick="selectPlace(2)">#2</button>
+      <button type="button" class="pos-btn" onclick="selectPlace(3)">#3</button>
+      <button type="button" class="pos-btn" onclick="selectPlace(4)">#4</button>
+      <button type="button" class="pos-btn" onclick="selectPlace(5)">#5</button>
+      <button type="button" class="pos-btn" onclick="selectPlace(10)">Top 10</button>
+      <button type="button" class="pos-btn" onclick="selectPlace(20)">Top 20</button>
+      <button type="button" class="pos-btn" onclick="selectPlace(21)">#20+</button>
+    </div>
+    <input type="hidden" id="sharedPlace" value="2">
+  </div>
+
+  <!-- MODE -->
+  <div class="panel-section">
+    <div class="panel-section-label">Mode</div>
+    <div style="display:flex;gap:8px">
+      <button type="button" class="mode-btn active" id="modeBR" onclick="selectMode('Battle Royale')">Battle Royale</button>
+      <button type="button" class="mode-btn" id="modeRE" onclick="selectMode('Resurgence')">Resurgence</button>
+    </div>
+    <input type="hidden" id="modeInput" value="Battle Royale">
+  </div>
+
+  <!-- P1 BLOCK -->
+  <div class="player-input-block p1-block">
+    <div class="pib-header">
+      <div class="pib-name p1label" id="panelName1">Joost</div>
+      <div class="pib-tag">P1</div>
+    </div>
+    <div class="pib-stats">
+      <div class="pib-stat">
+        <div class="pib-stat-label">Kills</div>
+        <input type="number" id="p1kills" min="0" placeholder="0" class="pib-input">
+      </div>
+      <div class="pib-stat">
+        <div class="pib-stat-label">Deaths</div>
+        <input type="number" id="p1deaths" min="0" placeholder="0" class="pib-input">
+      </div>
+    </div>
+  </div>
+
+  <!-- P2 BLOCK -->
+  <div class="player-input-block p2-block">
+    <div class="pib-header">
+      <div class="pib-name p2label" id="panelName2">Vriend</div>
+      <div class="pib-tag" style="color:var(--ice);border-color:rgba(0,184,230,.3)">P2</div>
+    </div>
+    <div class="pib-stats">
+      <div class="pib-stat">
+        <div class="pib-stat-label">Kills</div>
+        <input type="number" id="p2kills" min="0" placeholder="0" class="pib-input">
+      </div>
+      <div class="pib-stat">
+        <div class="pib-stat-label">Deaths</div>
+        <input type="number" id="p2deaths" min="0" placeholder="0" class="pib-input">
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-primary" onclick="saveGame()">&#x2713;  Opslaan</button>
+  </div>
+</div>
+
+</div><!-- /app-layout -->
+
+<!-- RENAME MODAL -->
+<div class="rename-overlay" id="editModal" onclick="maybeCloseEdit(event)">
+  <div class="rename-box" style="width:420px">
+    <div class="rename-title">Edit game</div>
+    <input type="hidden" id="editDateKey">
+    <input type="hidden" id="editGameIdx">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;letter-spacing:3px;color:var(--gold2);margin-bottom:10px" id="editName1">Joost</div>
+        <label>Kills</label><input type="number" id="editP1kills" min="0" style="margin-bottom:8px">
+        <label>Deaths</label><input type="number" id="editP1deaths" min="0">
+      </div>
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;letter-spacing:3px;color:var(--ice);margin-bottom:10px" id="editName2">Vriend</div>
+        <label>Kills</label><input type="number" id="editP2kills" min="0" style="margin-bottom:8px">
+        <label>Deaths</label><input type="number" id="editP2deaths" min="0">
+      </div>
+    </div>
+    <div class="rename-footer">
+      <button class="btn btn-ghost" onclick="closeEdit()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="rename-overlay" id="renameOverlay" onclick="maybeCloseRename(event)">
+  <div class="rename-box">
+    <div class="rename-title" id="renameTitle">Player 1 — Change name</div>
+    <input type="text" id="renameInput" maxlength="20" spellcheck="false" onkeydown="renameKey(event)">
+    <div class="rename-footer">
+      <button class="btn btn-ghost" onclick="closeRename()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmRename()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SESSIE SAMENVATTING BANNER -->
+<div id="sessieBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:500;animation:fadeIn .4s ease both">
+  <div style="background:linear-gradient(90deg,var(--surface2),#0e1015);border-bottom:2px solid var(--gold-line);padding:14px 32px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:3px;color:var(--gold3);text-transform:uppercase">🏁 Session complete</div>
+    <div id="bannerStats" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--silver);letter-spacing:1px;flex:1"></div>
+    <button class="btn btn-primary" style="font-size:12px;padding:8px 20px" onclick="bannerNieuweSessie()">▶ New session</button>
+    <button class="btn btn-ghost" style="font-size:10px;padding:6px 14px" onclick="sluitBanner()">✕</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ Game saved</div>
+<div class="undo-toast" id="undoToast">
+  <span id="undoMsg">Game deleted</span>
+  <button class="undo-btn" onclick="undoDelete()">↩ Undo</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════ -->
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_WZzyOarT8F3oVj91UYJgD5HES3iFC4A",
+    authDomain: "warzone-tracker-2c362.firebaseapp.com",
+    databaseURL: "https://warzone-tracker-2c362-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "warzone-tracker-2c362",
+    storageBucket: "warzone-tracker-2c362.firebasestorage.app",
+    messagingSenderId: "757574907604",
+    appId: "1:757574907604:web:9422ab8494dec09123ed41"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // Expose Firebase functions to global scope for use in main script
+  window._fbSet = (path, data) => set(ref(db, path), data);
+  window._fbListen = (path, cb) => onValue(ref(db, path), snap => cb(snap.val()));
+
+  // Signal that Firebase is ready
+  window._fbReady = true;
+  document.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<script>
+let sessions = [];
+let playerNames = ['Joost', 'Vriend'];
+let currentView = 'session';
+let expandedSessions = new Set();
+let modeFilter = 'all';
+let dateFilter = 'all';
+// Track flame animation frame IDs to cancel on re-render
+const flameAnimIds = {1: null, 2: null};
+const streakState  = {1: null, 2: null}; // track last rendered state to avoid unnecessary redraws
+const lastBadgeClass = {1: '', 2: ''}; // track badge state for rank-up animation
+let currentSessionKey = null;
+let undoState = null;
+let undoTimer = null;
+let isFirstLoad = true;
+
+function init() {
+  const raw = localStorage.getItem('wz_sessions_v2');
+  const pl  = localStorage.getItem('wz_players');
+  const ini = localStorage.getItem('wz_initials');
+  if (raw) sessions = JSON.parse(raw);
+  if (pl) {
+    playerNames = JSON.parse(pl);
+    const n1 = document.getElementById('name1display');
+    const n2 = document.getElementById('name2display');
+    if(n1) n1.textContent = playerNames[0];
+    if(n2) n2.textContent = playerNames[1];
+  }
+  if (ini) playerInitials = JSON.parse(ini);
+  const savedBg = localStorage.getItem('wz_bg');
+  if(savedBg) setBg(savedBg);
+  const statIds = ['kd1','kd2','avgkills1','avgkills2','sessgamewins1','sessgamewins2',
+    'at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2',
+    'shared-wins','perf-maxkills1','perf-maxkills2','perf-maxkd1','perf-maxkd2',
+    'perf-avgkills1','perf-avgkills2','perf-avgplace1','perf-avgplace2',
+    'pl-1','pl-top5','pl-top10','pl-top20','pl-rest','pl-total'];
+  statIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='0'; });
+  updatePanelDate();
+  updateInitials();
+  selectPlace(2);
+  initCombo();
+  render();
+
+  // Firebase live listener — werkt bij als telefoon iets opslaat
+  const startFirebaseListener = () => {
+    if(!window._fbReady || !window._fbListen) return;
+    let isFirstSync = true;
+    window._fbListen('tracker', data => {
+      if(!data) return;
+      // Negeer eerste sync als we al lokale data hebben (voorkom overschrijven)
+      if(isFirstSync){
+        isFirstSync = false;
+        if(sessions.length > 0) return; // lokale data heeft voorrang bij laden
+      }
+      // Update alleen als Firebase data nieuwer is dan onze lokale staat
+      const fbUpdated = data.updatedAt || 0;
+      const localUpdated = parseInt(localStorage.getItem('wz_last_save') || '0');
+      if(fbUpdated > localUpdated){
+        sessions = data.sessions || [];
+        playerNames = data.playerNames || playerNames;
+        playerInitials = data.playerInitials || playerInitials;
+        localStorage.setItem('wz_sessions_v2', JSON.stringify(sessions));
+        localStorage.setItem('wz_players', JSON.stringify(playerNames));
+        localStorage.setItem('wz_initials', JSON.stringify(playerInitials));
+        localStorage.setItem('wz_last_save', String(fbUpdated));
+        updateInitials();
+        updatePanelDate();
+        render();
+        showToast('↓ Synced from Firebase');
+      }
+    });
+  };
+
+  if(window._fbReady) startFirebaseListener();
+  else document.addEventListener('firebase-ready', startFirebaseListener, {once:true});
+}
+
+function save() {
+  const now = Date.now();
+  localStorage.setItem('wz_sessions_v2', JSON.stringify(sessions));
+  localStorage.setItem('wz_players', JSON.stringify(playerNames));
+  localStorage.setItem('wz_last_save', String(now));
+  // Sync naar Firebase als beschikbaar
+  if(window._fbReady && window._fbSet) {
+    window._fbSet('tracker', {
+      sessions,
+      playerNames,
+      playerInitials,
+      updatedAt: now
+    }).catch(e => console.warn('Firebase sync mislukt:', e));
+  }
+}
+function savePlayers() {
+  localStorage.setItem('wz_players', JSON.stringify(playerNames));
+  const n1=document.getElementById('name1display'); if(n1) n1.textContent=playerNames[0];
+  const n2=document.getElementById('name2display'); if(n2) n2.textContent=playerNames[1];
+  const p1=document.getElementById('perf-name1');   if(p1) p1.textContent=playerNames[0];
+  const p2=document.getElementById('perf-name2');   if(p2) p2.textContent=playerNames[1];
+  updateInitials();
+  updatePanelDate();
+  updateCombo();
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('toggleSession').classList.toggle('active', v === 'session');
+  document.getElementById('toggleTotal').classList.toggle('active', v === 'total');
+  document.getElementById('viewSession').style.display = v === 'session' ? 'block' : 'none';
+  document.getElementById('viewTotal').style.display   = v === 'total'   ? 'block' : 'none';
+  const lt = document.getElementById('logTitle');
+  if(lt) lt.textContent = v === 'session' ? 'Session Log' : 'Overview';
+  render();
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function keyToDate(key) {
+  const base = key.split('_')[0];
+  const [y,m,d] = base.split('-');
+  return `${d}-${m}-${y}`;
+}
+function formatDate(key) { return keyToDate(key); }
+
+function newSessionKey() {
+  const base = todayKey();
+  const existing = sessions.filter(s=>s.dateKey.startsWith(base));
+  if(existing.length === 0) return base;
+  return `${base}_${existing.length + 1}`;
+}
+
+function startNieuweSessie() {
+  currentSessionKey = newSessionKey();
+  updatePanelDate();
+}
+
+function updatePanelDate() {
+  const key = currentSessionKey || todayKey();
+  const existing = sessions.find(s=>s.dateKey===key);
+  const gc = existing ? existing.games.length : 0;
+  const el = document.getElementById('panelDateLabel');
+  const base = todayKey();
+  const sessionsToday = sessions.filter(s=>s.dateKey.startsWith(base));
+  const sessNum = sessionsToday.findIndex(s=>s.dateKey===key);
+  const numLabel = sessionsToday.length > 1 && sessNum >= 0 ? ` · Session ${sessNum+1}` : '';
+  if (el) el.textContent = `${keyToDate(key)}${numLabel}${gc>0?` — Game #${gc+1}`:''}`;
+  const n1 = document.getElementById('panelName1');
+  const n2 = document.getElementById('panelName2');
+  if (n1) n1.textContent = playerNames[0];
+  if (n2) n2.textContent = playerNames[1];
+}
+function saveGame() {
+  const place = parseInt(document.getElementById('sharedPlace').value);
+  const p1 = {
+    kills:  parseInt(document.getElementById('p1kills').value)||0,
+    deaths: parseInt(document.getElementById('p1deaths').value)||0,
+    place,
+  };
+  const p2 = {
+    kills:  parseInt(document.getElementById('p2kills').value)||0,
+    deaths: parseInt(document.getElementById('p2deaths').value)||0,
+    place,
+  };
+  const mode = document.getElementById('modeInput').value||'—';
+  let winner;
+  if (p1.kills > p2.kills) winner = 0;
+  else if (p2.kills > p1.kills) winner = 1;
+  else {
+    const kd1 = p1.deaths === 0 ? p1.kills : p1.kills / p1.deaths;
+    const kd2 = p2.deaths === 0 ? p2.kills : p2.kills / p2.deaths;
+    if (kd1 > kd2) winner = 0;
+    else if (kd2 > kd1) winner = 1;
+    else winner = -1;
+  }
+
+  const key = currentSessionKey || todayKey();
+  let sess=sessions.find(s=>s.dateKey===key);
+  if(!sess){ sess={dateKey:key,date:keyToDate(key),games:[]}; sessions.push(sess); }
+  currentSessionKey = key;
+  // PR check vóór push zodat vorige max intact is
+  checkAndFlashPR(p1, p2);
+  sess.games.push({mode,p1,p2,winner});
+  expandedSessions.add(key);
+
+  save(); render();
+
+  // Victory sound + sparks bij #1
+  if(place === 1){ playVictorySound(); spawnSparks(); }
+
+  // Flash spelerkaarten
+  const card1 = document.querySelector('.player-card.p1 .player-rank');
+  const card2 = document.querySelector('.player-card.p2 .player-rank');
+  if(card1){ card1.classList.remove('card-flash-p1'); void card1.offsetWidth; card1.classList.add('card-flash-p1'); }
+  if(card2){ card2.classList.remove('card-flash-p2'); void card2.offsetWidth; card2.classList.add('card-flash-p2'); }
+
+  // Samenvatting toast
+  const placeLabel = place===1?'#1 🏆':place<=5?`Top ${place}`:place<=10?'Top 10':place<=20?'Top 20':'50+';
+  const winnerLabel = winner===0 ? `🏅 ${playerNames[0]} wins` : winner===1 ? `🏅 ${playerNames[1]} wins` : '🤝 Tie';
+  showToast(`✓ Game saved · ${placeLabel} · ${winnerLabel}`);
+  ['p1kills','p1deaths','p2kills','p2deaths'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  selectPlace(2);
+  selectMode('Battle Royale');
+  updatePanelDate();
+  resetInactivityTimer();
+}
+
+function deleteGame(dateKey,gi){
+  const sess=sessions.find(s=>s.dateKey===dateKey);
+  if(!sess) return;
+  const removed = sess.games.splice(gi,1)[0];
+  const sessEmpty = sess.games.length===0;
+  if(sessEmpty){ sessions=sessions.filter(s=>s.dateKey!==dateKey); expandedSessions.delete(dateKey); }
+  save(); render();
+
+  // Sla undo-state op
+  undoState = { dateKey, gi, game:removed, sessDate:sess.date, wasEmpty:sessEmpty };
+  showUndoToast('Game deleted');
+}
+function deleteSession(dateKey){
+  sessions=sessions.filter(s=>s.dateKey!==dateKey);
+  expandedSessions.delete(dateKey);
+  save(); render();
+}
+function exportData() {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    playerNames,
+    sessions
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `warzone-tracker-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.sessions) throw new Error('Ongeldig bestand');
+      if (!confirm(`Import ${data.sessions.length} session(s)? Current data will be overwritten.`)) return;
+      sessions = data.sessions;
+      if (data.playerNames) {
+        playerNames = data.playerNames;
+        document.getElementById('name1display').textContent = playerNames[0];
+        document.getElementById('name2display').textContent = playerNames[1];
+        savePlayers();
+      }
+      save();
+      updatePanelDate();
+      render();
+      showToast();
+      document.getElementById('toast').textContent = '✓ Import geslaagd';
+    } catch {
+      alert('Import failed — please check that this is a valid Warzone Tracker file.');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function clearAll(){
+  if(!sessions.length) return;
+  const n = sessions.length;
+  const g = sessions.reduce((s,sess)=>s+sess.games.length,0);
+  if(confirm(`Weet je zeker dat je alle data wilt wissen?\n\n${n} sessie${n!==1?'s':''} · ${g} potje${g!==1?'s':''}\n\nDit kan niet ongedaan worden.`)){
+    sessions=[]; expandedSessions.clear(); save(); render();
+  }
+}
+function toggleExpand(dateKey){
+  if(expandedSessions.has(dateKey)) expandedSessions.delete(dateKey);
+  else expandedSessions.add(dateKey);
+  render();
+}
+function openEdit(dateKey, gi){
+  const sess = sessions.find(s=>s.dateKey===dateKey);
+  if(!sess) return;
+  const g = sess.games[gi];
+  document.getElementById('editDateKey').value = dateKey;
+  document.getElementById('editGameIdx').value = gi;
+  document.getElementById('editP1kills').value  = g.p1.kills;
+  document.getElementById('editP1deaths').value = g.p1.deaths;
+  document.getElementById('editP2kills').value  = g.p2.kills;
+  document.getElementById('editP2deaths').value = g.p2.deaths;
+  document.getElementById('editName1').textContent = playerNames[0];
+  document.getElementById('editName2').textContent = playerNames[1];
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEdit(){ document.getElementById('editModal').classList.remove('open'); }
+function maybeCloseEdit(e){ if(e.target===document.getElementById('editModal')) closeEdit(); }
+function confirmEdit(){
+  const dateKey = document.getElementById('editDateKey').value;
+  const gi = parseInt(document.getElementById('editGameIdx').value);
+  const sess = sessions.find(s=>s.dateKey===dateKey);
+  if(!sess) return;
+  const g = sess.games[gi];
+  g.p1.kills  = parseInt(document.getElementById('editP1kills').value)||0;
+  g.p1.deaths = parseInt(document.getElementById('editP1deaths').value)||0;
+  g.p2.kills  = parseInt(document.getElementById('editP2kills').value)||0;
+  g.p2.deaths = parseInt(document.getElementById('editP2deaths').value)||0;
+  // Herbereken winner
+  if(g.p1.kills > g.p2.kills) g.winner=0;
+  else if(g.p2.kills > g.p1.kills) g.winner=1;
+  else {
+    const kd1=kdVal(g.p1.kills,g.p1.deaths), kd2=kdVal(g.p2.kills,g.p2.deaths);
+    g.winner = kd1>kd2?0:kd2>kd1?1:-1;
+  }
+  save(); render(); closeEdit();
+  showToast('✓ Game updated');
+}
+
+function calcPR(){
+  const allG = sessions.flatMap(s=>s.games);
+  if(!allG.length) return { maxK1:0, maxK2:0, maxKd1:0, maxKd2:0 };
+  return {
+    maxK1:  Math.max(...allG.map(g=>g.p1.kills)),
+    maxK2:  Math.max(...allG.map(g=>g.p2.kills)),
+    maxKd1: Math.max(...allG.map(g=>kdVal(g.p1.kills,g.p1.deaths))),
+    maxKd2: Math.max(...allG.map(g=>kdVal(g.p2.kills,g.p2.deaths)))
+  };
+}
+
+let inactivityTimer = null;
+const INACTIVITY_MS = 30 * 60 * 1000; // 30 minuten
+
+function resetInactivityTimer(){
+  clearTimeout(inactivityTimer);
+  const key = currentSessionKey || todayKey();
+  const sess = sessions.find(s=>s.dateKey===key);
+  if(!sess || sess.games.length === 0) return;
+  inactivityTimer = setTimeout(()=>toonSessieBanner(key), INACTIVITY_MS);
+}
+
+function toonSessieBanner(key){
+  const sess = sessions.find(s=>s.dateKey===key);
+  if(!sess || sess.games.length === 0) return;
+  const n = sess.games.length;
+  const w1 = sess.games.filter(g=>g.winner===0).length;
+  const w2 = sess.games.filter(g=>g.winner===1).length;
+  const scoreStr = `${playerNames[0]} ${w1} — ${w2} ${playerNames[1]}`;
+  const k1 = sess.games.reduce((s,g)=>s+g.p1.kills,0);
+  const k2 = sess.games.reduce((s,g)=>s+g.p2.kills,0);
+  const el = document.getElementById('bannerStats');
+  if(el) el.textContent = `${n} game${n!==1?'s':''} · ${scoreStr} · ${playerNames[0]} ${k1} kills · ${playerNames[1]} ${k2} kills`;
+  document.getElementById('sessieBanner').style.display = 'block';
+}
+
+function sluitBanner(){
+  document.getElementById('sessieBanner').style.display = 'none';
+  clearTimeout(inactivityTimer);
+}
+
+function bannerNieuweSessie(){
+  sluitBanner();
+  startNieuweSessie();
+  showToast(`▶ New session started`);
+}
+
+function showUndoToast(msg){
+  const t = document.getElementById('undoToast');
+  const m = document.getElementById('undoMsg');
+  if(!t) return;
+  if(m) m.textContent = msg;
+  clearTimeout(undoTimer);
+  t.classList.remove('show'); void t.offsetWidth;
+  t.classList.add('show');
+  undoTimer = setTimeout(()=>{ t.classList.remove('show'); undoState=null; }, 6000);
+}
+
+function undoDelete(){
+  if(!undoState) return;
+  const { dateKey, gi, game, sessDate } = undoState;
+  let sess = sessions.find(s=>s.dateKey===dateKey);
+  if(!sess){
+    sess = { dateKey, date:sessDate, games:[] };
+    sessions.push(sess);
+    sessions.sort((a,b)=>a.dateKey.localeCompare(b.dateKey));
+  }
+  sess.games.splice(gi, 0, game);
+  expandedSessions.add(dateKey);
+  save(); render();
+  undoState = null;
+  clearTimeout(undoTimer);
+  document.getElementById('undoToast').classList.remove('show');
+  showToast('✓ Game restored');
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent = msg || '✓ Game saved';
+  t.classList.remove('show');
+  void t.offsetWidth;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),5000);
+}
+
+function animateVal(el, newVal, decimals=0){
+  if(!el) return;
+  const oldVal = parseFloat(el.textContent) || 0;
+  if(oldVal === newVal) return;
+  // Flash the element
+  el.classList.remove('stat-val-changed');
+  void el.offsetWidth;
+  el.classList.add('stat-val-changed');
+  setTimeout(()=>el.classList.remove('stat-val-changed'), 450);
+  const duration = isFirstLoad ? 1000 : 500;
+  const startTime = performance.now();
+  const diff = newVal - oldVal;
+  function step(now){
+    const p = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = (oldVal + diff * ease).toFixed(decimals);
+    if(p < 1) requestAnimationFrame(step);
+    else el.textContent = newVal.toFixed(decimals);
+  }
+  requestAnimationFrame(step);
+}
+let playerInitials = ['', ''];
+
+function getInitials(name){
+  const parts = name.trim().split(/\s+/);
+  if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0,2).toUpperCase();
+}
+
+function updateInitials(){
+  const el1 = document.getElementById('initials1');
+  const el2 = document.getElementById('initials2');
+  if(el1) el1.textContent = playerInitials[0] || getInitials(playerNames[0]);
+  if(el2) el2.textContent = playerInitials[1] || getInitials(playerNames[1]);
+}
+
+function openInitialsEdit(pi){
+  const current = playerInitials[pi] || getInitials(playerNames[pi]);
+  const overlay = document.getElementById('renameOverlay');
+  // Reuse rename modal but tweak title and pre-fill
+  document.getElementById('renameTitle').textContent = 'Edit initials';
+  const input = document.getElementById('renameInput');
+  input.value = current;
+  input.maxLength = 3;
+  input.dataset.initialsFor = pi;
+  overlay.classList.add('open');
+  setTimeout(()=>input.focus(),50);
+  // Switch confirm to save initials
+  overlay.dataset.mode = 'initials';
+}
+
+function setBg(theme){
+  document.body.className = document.body.className
+    .replace(/bg-\S+/g,'').trim();
+  if(theme !== 'default') document.body.classList.add('bg-'+theme);
+  document.querySelectorAll('.bg-dot').forEach(d=>{
+    d.classList.toggle('active', d.classList.contains('bg-dot-'+theme));
+  });
+  localStorage.setItem('wz_bg', theme);
+}
+
+function kdVal(k,d){ return d===0?k:k/d; }
+function kdStr(k,d){ return kdVal(k,d).toFixed(2); }
+
+function placeBadge(place){
+  if(place===1)  return `<span class="place-badge place-1">#1</span>`;
+  if(place<=5)   return `<span class="place-badge place-top5">Top ${place}</span>`;
+  if(place<=10)  return `<span class="place-badge place-other">Top 10</span>`;
+  if(place<=20)  return `<span class="place-badge place-other">Top 20</span>`;
+  return `<span class="place-badge place-other">50+</span>`;
+}
+function winnerHtml(w){
+  if(w===0) return `<span class="winner-cell win-p1">${playerNames[0]}</span>`;
+  if(w===1) return `<span class="winner-cell win-p2">${playerNames[1]}</span>`;
+  return `<span class="winner-cell win-tie">Tie</span>`;
+}
+
+function selectPlace(val) {
+  document.getElementById('sharedPlace').value = val;
+  const label = val===1?'🏆 #1':val===10?'Top 10':val===20?'Top 20':val===21?'#20+':'#'+val;
+  document.querySelectorAll('.pos-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim() === label);
+  });
+}
+
+function setDateFilter(val){
+  dateFilter = val;
+  ['all','today','week','month'].forEach(v=>{
+    const el=document.getElementById(`df-${v}`);
+    if(el) el.classList.toggle('active', v===val);
+  });
+  render();
+}
+
+function setModeFilter(val){
+  modeFilter = val;
+  document.getElementById('mf-all').classList.toggle('active', val==='all');
+  document.getElementById('mf-br').classList.toggle('active',  val==='Battle Royale');
+  document.getElementById('mf-re').classList.toggle('active',  val==='Resurgence');
+  render();
+}
+
+function selectMode(mode) {
+  document.getElementById('modeInput').value = mode;
+  document.getElementById('modeBR').classList.toggle('active', mode === 'Battle Royale');
+  document.getElementById('modeRE').classList.toggle('active', mode === 'Resurgence');
+}
+
+function aggSess(sess){
+  const g=sess.games;
+  const agg=pk=>({
+    kills: g.reduce((s,x)=>s+x[pk].kills,0),
+    deaths:g.reduce((s,x)=>s+x[pk].deaths,0),
+    place1:g.filter(x=>x[pk].place===1).length,
+  });
+  const p1=agg('p1'),p2=agg('p2');
+  const w1=g.filter(x=>x.winner===0).length, w2=g.filter(x=>x.winner===1).length;
+  return {p1,p2,w1,w2,sessWinner:w1>w2?0:w2>w1?1:-1};
+}
+function filteredSessions(){
+  const now = new Date();
+  const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek  = new Date(startOfDay); startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay() + 1);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  return sessions.filter(sess=>{
+    if(dateFilter !== 'all'){
+      const base = sess.dateKey.split('_')[0];
+      const [y,m,d] = base.split('-').map(Number);
+      const sessDate = new Date(y, m-1, d);
+      if(dateFilter==='today' && sessDate < startOfDay)   return false;
+      if(dateFilter==='week'  && sessDate < startOfWeek)  return false;
+      if(dateFilter==='month' && sessDate < startOfMonth) return false;
+    }
+    return true;
+  });
+}
+function allGames(){
+  return filteredSessions().flatMap(s=>
+    modeFilter==='all' ? s.games : s.games.filter(g=>g.mode===modeFilter)
+  );
+}
+
+function render(){
+  const totalGames=allGames().length;
+  const fCount=filteredSessions().length;
+  document.getElementById('sessionCount').textContent=
+    `${fCount} session${fCount!==1?'s':''} · ${totalGames} game${totalGames!==1?'s':''}`;
+  renderLeaderboard();
+  if(currentView==='session') renderSessionTable();
+  else renderTotalTable();
+  updatePerformance();
+  updateCombo();
+  isFirstLoad = false;
+}
+function renderLeaderboard(){
+  const games=allGames(); const n=games.length;
+
+  // All time — altijd over ALLE sessies, nooit gefilterd op datum of mode
+  const aggAllTime=pk=>{
+    const allG = sessions.flatMap(s=>s.games);
+    const ng = allG.length;
+    const k=allG.reduce((s,g)=>s+g[pk].kills,0);
+    const d=allG.reduce((s,g)=>s+g[pk].deaths,0);
+    const totalGameWins=allG.filter(g=>g.winner===(pk==='p1'?0:1)).length;
+    // Avg game wins per session for fair comparison with current session
+    const avgGameWins = ng ? totalGameWins / sessions.flatMap(s=>s.games).length * (activeSess?.games.length||1) : 0;
+    return { kd:ng===0?0:kdVal(k,d), avgKills:ng?k/ng:0, gameWins:ng?totalGameWins/Math.max(sessions.length,1):0 };
+  };
+
+  // Sessie stats — alleen de huidige actieve sessie (currentSessionKey of vandaag)
+  const activeKey = currentSessionKey || todayKey();
+  const activeSess = sessions.find(s=>s.dateKey===activeKey);
+  const aggToday=pk=>{
+    if(!activeSess||activeSess.games.length===0) return { kd:0, avgKills:0, gameWins:0 };
+    const allG = modeFilter==='all' ? activeSess.games : activeSess.games.filter(x=>x.mode===modeFilter);
+    if(!allG.length) return { kd:0, avgKills:0, gameWins:0 };
+    const k=allG.reduce((s,x)=>s+x[pk].kills,0);
+    const d=allG.reduce((s,x)=>s+x[pk].deaths,0);
+    const gameWins=allG.filter(x=>x.winner===(pk==='p1'?0:1)).length;
+    return { kd:kdVal(k,d), avgKills:k/allG.length, gameWins };
+  };
+
+  const s1=aggAllTime('p1'), s2=aggAllTime('p2');
+  const t1=aggToday('p1'),   t2=aggToday('p2');
+  // Session Wins — vergelijk direct tussen spelers
+  const setWinsColor = (el, myWins, otherWins) => {
+    if(!el) return;
+    if(myWins === otherWins){ el.style.color=''; el.style.textShadow=''; }
+    else if(myWins > otherWins){ el.style.color='var(--emerald)'; el.style.textShadow='0 0 10px rgba(61,232,138,.4)'; }
+    else { el.style.color='var(--ruby)'; el.style.textShadow='0 0 10px rgba(232,64,90,.35)'; }
+  };
+
+  const allGamesTotal = sessions.flatMap(s=>s.games);
+  const totalN = allGamesTotal.length;
+
+  const cmp=(id1,id2,v1,v2,fmt,lowerBetter=false)=>{
+    const el1=document.getElementById(id1), el2=document.getElementById(id2);
+    if(!el1||!el2) return;
+    const result = fmt(1.1);
+    const dec = typeof result === 'string' && result.includes('.') ? result.split('.')[1].length : 0;
+    animateVal(el1, v1, dec); animateVal(el2, v2, dec);
+    const better=lowerBetter?v1<v2:v1>v2;
+    const worse =lowerBetter?v1>v2:v1<v2;
+    el1.className='compare-val '+(better?'better':worse?'worse':'equal');
+    el2.className='compare-val '+(worse?'better':better?'worse':'equal');
+  };
+
+  const calcAt=pk=>{
+    const ng=allGamesTotal.length;
+    const kills=allGamesTotal.reduce((s,g)=>s+g[pk].kills,0);
+    const deaths=allGamesTotal.reduce((s,g)=>s+g[pk].deaths,0);
+    const kd=ng?kdVal(kills,deaths):0;
+    const avgKills=ng?kills/ng:0;
+    const gameWins=allGamesTotal.filter(g=>g.winner===(pk==='p1'?0:1)).length;
+    return { kd, avgKills, gameWins };
+  };
+  const at1=calcAt('p1'), at2=calcAt('p2');
+
+  const fSess = filteredSessions();
+  const sw1=fSess.filter(s=>aggSess(s).sessWinner===0).length;
+  const sw2=fSess.filter(s=>aggSess(s).sessWinner===1).length;
+  const leading=sw1>sw2?0:sw2>sw1?1:-1;
+
+  [[s1,t1,'1',0],[s2,t2,'2',1]].forEach(([s,t,sfx,pi])=>{
+    const kdEl = document.getElementById(`kd${sfx}`);
+    if(t.kd === 0 && t.gameWins === 0 && t.avgKills === 0){
+      if(kdEl){ kdEl.textContent='—'; kdEl.style.color='var(--silver)'; kdEl.style.textShadow=''; }
+      const avgEl=document.getElementById(`avgkills${sfx}`);
+      const winsEl=document.getElementById(`sessgamewins${sfx}`);
+      if(avgEl){ avgEl.textContent='—'; avgEl.style.color='var(--silver)'; }
+      if(winsEl){ winsEl.textContent='—'; winsEl.style.color='var(--silver)'; }
+    } else {
+      const setColor = (el, val, ref) => {
+        if(!el) return;
+        if(totalN === 0 || val === ref){ el.style.color=''; el.style.textShadow=''; }
+        else if(val > ref){ el.style.color='var(--emerald)'; el.style.textShadow='0 0 10px rgba(61,232,138,.4)'; }
+        else { el.style.color='var(--ruby)'; el.style.textShadow='0 0 10px rgba(232,64,90,.35)'; }
+      };
+      animateVal(kdEl, parseFloat(t.kd.toFixed(2)), 2);
+      setColor(kdEl, t.kd, s.kd);
+      const avgEl = document.getElementById(`avgkills${sfx}`);
+      animateVal(avgEl, parseFloat(t.avgKills.toFixed(1)), 1);
+      setColor(avgEl, t.avgKills, s.avgKills);
+      const winsEl = document.getElementById(`sessgamewins${sfx}`);
+      animateVal(winsEl, t.gameWins, 0);
+      const otherWins = pi===0 ? t2.gameWins : t1.gameWins;
+      setWinsColor(winsEl, t.gameWins, otherWins);
+    }
+    const badge=document.getElementById(`badge${sfx}`);
+    if(badge){
+      const prevClass = lastBadgeClass[sfx];
+      if(leading===pi){
+        const wasLeading = prevClass === 'badge-leading';
+        badge.className='player-badge badge-leading';
+        badge.textContent='Leading';
+        if(!wasLeading){
+          badge.classList.add('badge-rankup');
+          setTimeout(()=>badge.classList.remove('badge-rankup'), 1000);
+        }
+        lastBadgeClass[sfx]='badge-leading';
+      } else if(leading===-1){
+        badge.className='player-badge badge-tie';
+        badge.textContent='Tie';
+        lastBadgeClass[sfx]='badge-tie';
+      } else {
+        badge.className='player-badge badge-trailing';
+        badge.textContent='Trailing';
+        lastBadgeClass[sfx]='badge-trailing';
+      }
+    }
+  });
+
+  // Win streak
+  const calcStreak = (pi) => {
+    const allG = allGames();
+    if(!allG.length) return { count:0, type:'none' };
+    let count = 0;
+    const type = allG[allG.length-1].winner === pi ? 'win' : allG[allG.length-1].winner === -1 ? 'tie' : 'loss';
+    for(let i=allG.length-1; i>=0; i--){
+      const w = allG[i].winner;
+      if(type==='win'  && w===pi)  count++;
+      else if(type==='loss' && w!==-1 && w!==pi) count++;
+      else if(type==='tie'  && w===-1) count++;
+      else break;
+    }
+    return { count, type };
+  };
+
+  const hbSvg = `<svg viewBox="0 0 560 36" preserveAspectRatio="none"><polyline points="0,18 20,18 28,5 35,31 42,5 50,18 90,18 98,5 105,31 112,5 120,18 160,18 168,5 175,31 182,5 190,18 230,18 238,5 245,31 252,5 260,18 300,18 308,5 315,31 322,5 330,18 370,18 378,5 385,31 392,5 400,18 440,18 448,5 455,31 462,5 470,18 510,18 518,5 525,31 532,5 540,18 560,18" fill="none" stroke="rgba(220,0,40,.65)" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+
+  [0,1].forEach(pi=>{
+    const sfx=pi+1;
+    const { count, type } = calcStreak(pi);
+    const el = document.getElementById(`streak${sfx}`);
+    if(!el) return;
+    if(count < 2) {
+      el.style.display='none';
+      streakState[sfx] = null;
+      if(flameAnimIds[sfx]){ cancelAnimationFrame(flameAnimIds[sfx]); flameAnimIds[sfx]=null; }
+      return;
+    }
+    el.style.display='flex';
+    const newState = `${type}-${count}-${pi}`;
+    // Only rebuild DOM + restart animation if state actually changed
+    if(streakState[sfx] !== newState){
+      streakState[sfx] = newState;
+      if(flameAnimIds[sfx]){ cancelAnimationFrame(flameAnimIds[sfx]); flameAnimIds[sfx]=null; }
+      el.className = `streak-bar ${type==='win'?(pi===0?'p1-streak':'p2-streak'):'lose-streak'}`;
+      if(type==='loss'){
+        el.innerHTML = `<div class="hb-track">${hbSvg}${hbSvg}</div><div class="streak-content">💀&nbsp;&nbsp;${count}× Loss streak</div>`;
+      } else if(type==='win') {
+        el.innerHTML = `<canvas class="flame-canvas" id="flameCanvas${sfx}"></canvas><div class="flame-fade"></div><div class="flame-text"><span style="font-size:14px">🔥</span>${count}× Win streak</div>`;
+        initFlameCanvas(`flameCanvas${sfx}`, el, sfx);
+      } else {
+        el.innerHTML = `<span style="padding:0 12px">🤝&nbsp;&nbsp;${count}× Tie</span>`;
+      }
+    } else {
+      // Just update the count label without rebuilding
+      const txt = el.querySelector('.flame-text, .streak-content');
+      if(txt && type==='win') txt.innerHTML = `<span style="font-size:14px">🔥</span>${count}× Win streak`;
+      if(txt && type==='loss') txt.innerHTML = `💀&nbsp;&nbsp;${count}× Loss streak`;
+    }
+  });
+
+  // Show dashes if no games at all
+  if(totalN===0){
+    ['at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){ el.textContent='—'; el.style.color='var(--silver)'; el.className='compare-val equal'; }
+    });
+  } else {
+    cmp('at-kd1','at-kd2',         at1.kd,       at2.kd,       v=>v.toFixed(2));
+    cmp('at-avgkills1','at-avgkills2', at1.avgKills, at2.avgKills, v=>v.toFixed(1));
+    cmp('at-gamewins1','at-gamewins2', at1.gameWins, at2.gameWins, v=>v);
+  }
+
+  // Shared: total #1 finishes all time (ongefilterd)
+  const sharedWins=allGamesTotal.filter(g=>g.p1.place===1).length;
+  animateVal(document.getElementById('shared-wins'), sharedWins);
+  const sub=document.getElementById('shared-wins-sub');
+  if(sub) sub.textContent=`${sharedWins} of ${totalN} game${totalN!==1?'s':''} ending at #1`;
+
+  // Streak — consecutive #1 finishes across all games (most recent first)
+  const allG = [...games].reverse();
+  let streak = 0;
+  for(const g of allG){
+    if(g.p1.place === 1) streak++;
+    else break;
+  }
+  const streakBadge = document.getElementById('streak-badge');
+  const streakVal   = document.getElementById('streak-val');
+  const streakFire  = document.querySelector('.streak-fire');
+  if(streakBadge && streakVal){
+    if(streak >= 2){
+      streakBadge.style.display = 'flex';
+      streakVal.textContent = streak;
+      if(streakFire){
+        streakFire.className = 'streak-fire' + (streak >= 7 ? ' inferno' : streak >= 4 ? ' hot' : '');
+        streakFire.textContent = streak >= 7 ? '🔥🔥' : '🔥';
+      }
+    } else {
+      streakBadge.style.display = 'none';
+    }
+  }
+  const th1=document.getElementById('th1'); if(th1) th1.textContent=`${playerNames[0]} — Kills`;
+  const th2=document.getElementById('th2'); if(th2) th2.textContent=`${playerNames[1]} — Kills`;
+}
+
+function renderSessionTable(){
+  try {
+    const tbody = document.getElementById('sessionBody');
+    const noData = document.getElementById('noDataSession');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+
+    const allFiltered = filteredSessions();
+
+    if(allFiltered.length === 0){
+      if(noData){ noData.style.display='block'; noData.textContent = sessions.length===0 ? 'No sessions logged' : 'No sessions for this filter'; }
+      return;
+    }
+
+    // Find best session (highest avg combined kills)
+    let bestKey=null, bestScore=-1;
+    allFiltered.forEach(sess=>{
+      const fg = modeFilter==='all' ? sess.games : sess.games.filter(g=>g.mode===modeFilter);
+      if(!fg.length) return;
+      const avg = fg.reduce((s,g)=>s+g.p1.kills+g.p2.kills,0)/fg.length;
+      if(avg>bestScore){ bestScore=avg; bestKey=sess.dateKey; }
+    });
+
+    // Bereken gemiddelde kills per speler voor kleurcodering
+    const allG = allGames();
+    const avgK1 = allG.length ? allG.reduce((s,g)=>s+g.p1.kills,0)/allG.length : 0;
+    const avgK2 = allG.length ? allG.reduce((s,g)=>s+g.p2.kills,0)/allG.length : 0;
+
+    const killColor1 = (k) => k > avgK1 ? 'var(--emerald)' : k < avgK1 && avgK1>0 ? 'var(--ruby)' : 'var(--gold2)';
+    const killColor2 = (k) => k > avgK2 ? 'var(--emerald)' : k < avgK2 && avgK2>0 ? 'var(--ruby)' : 'var(--ice)';
+
+    let rowsAdded = 0;
+    [...allFiltered].reverse().forEach(sess=>{
+      const filteredGames = modeFilter==='all' ? sess.games : sess.games.filter(g=>g.mode===modeFilter);
+      if(!filteredGames.length) return;
+
+      const sumKills=(pk)=>filteredGames.reduce((s,g)=>s+g[pk].kills,0);
+      const sumDeaths=(pk)=>filteredGames.reduce((s,g)=>s+g[pk].deaths,0);
+      const p1k=sumKills('p1'), p1d=sumDeaths('p1');
+      const p2k=sumKills('p2'), p2d=sumDeaths('p2');
+      const avgP1k = p1k / filteredGames.length;
+      const avgP2k = p2k / filteredGames.length;
+      const place1count=filteredGames.filter(g=>g.p1.place===1).length;
+      const w1=filteredGames.filter(g=>g.winner===0).length;
+      const w2=filteredGames.filter(g=>g.winner===1).length;
+      const sessWinner=w1>w2?0:w2>w1?1:-1;
+      const isExp=expandedSessions.has(sess.dateKey);
+      const dk=sess.dateKey;
+      const isBest=dk===bestKey && allFiltered.length>1;
+
+      const row = document.createElement('tr');
+      row.className = `session-row${isExp?' expanded':''}${isBest?' best-session':''}`;
+      row.onclick = ()=>toggleExpand(dk);
+      row.innerHTML = `
+        <td><span class="expand-icon">▶</span>${isBest?'<span class="best-badge">★</span>':''}</td>
+        <td style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:1px;color:var(--platinum)">${sess.date}</td>
+        <td>${isExp?'':` <span class="games-badge">${filteredGames.length} game${filteredGames.length!==1?'s':''}</span>`}</td>
+        <td>${isExp?'':(place1count>0?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold3)">${place1count}</span>`:'<span style="color:var(--smoke)">—</span>')}</td>
+        <td class="col-p1" style="color:${isExp?'transparent':killColor1(avgP1k)};font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900">${isExp?'':p1k}</td>
+        <td class="col-p1-last" style="color:${isExp?'transparent':'var(--gold2)'};font-family:'JetBrains Mono',monospace;font-size:12px">${isExp?'':kdStr(p1k,p1d)}</td>
+        <td class="col-p2" style="color:${isExp?'transparent':killColor2(avgP2k)};font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900">${isExp?'':p2k}</td>
+        <td class="col-p2-last" style="color:${isExp?'transparent':'var(--ice)'};font-family:'JetBrains Mono',monospace;font-size:12px">${isExp?'':kdStr(p2k,p2d)}</td>
+        <td>${isExp?'':winnerHtml(sessWinner)}</td>
+        <td></td>`;
+      tbody.appendChild(row);
+      rowsAdded++;
+
+      if(isExp){
+        const pr = calcPR();
+        filteredGames.forEach((g,gi)=>{
+          const isPrK1  = allG.length>1 && g.p1.kills  === pr.maxK1  && pr.maxK1>0;
+          const isPrK2  = allG.length>1 && g.p2.kills  === pr.maxK2  && pr.maxK2>0;
+          const isPrKd1 = allG.length>1 && kdVal(g.p1.kills,g.p1.deaths) === pr.maxKd1 && pr.maxKd1>0;
+          const isPrKd2 = allG.length>1 && kdVal(g.p2.kills,g.p2.deaths) === pr.maxKd2 && pr.maxKd2>0;
+          const prBadge1 = '<span style="font-family:\'JetBrains Mono\',monospace;font-size:8px;letter-spacing:1px;color:var(--ice2);background:rgba(0,184,230,.15);border:1px solid rgba(0,184,230,.45);padding:1px 6px;margin-left:10px;vertical-align:middle">PR</span>';
+          const prBadge2 = '<span style="font-family:\'JetBrains Mono\',monospace;font-size:8px;letter-spacing:1px;color:var(--gold3);background:rgba(255,140,26,.15);border:1px solid rgba(255,140,26,.4);padding:1px 6px;margin-left:10px;vertical-align:middle">PR</span>';
+          const subRow = document.createElement('tr');
+          subRow.className = 'game-sub-row';
+          subRow.innerHTML = `
+            <td style="padding-left:28px;color:var(--pewter);font-size:11px;font-family:'JetBrains Mono',monospace">└ #${gi+1}</td>
+            <td style="color:var(--pewter);font-size:11px;font-family:'JetBrains Mono',monospace">${g.mode}</td>
+            <td></td>
+            <td>${placeBadge(g.p1.place)}</td>
+            <td class="col-p1" style="color:${killColor1(g.p1.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p1.kills}${isPrK1?prBadge1:''}</td>
+            <td class="col-p1-last" style="color:var(--gold2);font-family:'JetBrains Mono',monospace;font-size:11px">${kdStr(g.p1.kills,g.p1.deaths)}${isPrKd1?prBadge1:''}</td>
+            <td class="col-p2" style="color:${killColor2(g.p2.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p2.kills}${isPrK2?prBadge2:''}</td>
+            <td class="col-p2-last" style="color:var(--ice);font-family:'JetBrains Mono',monospace;font-size:11px">${kdStr(g.p2.kills,g.p2.deaths)}${isPrKd2?prBadge2:''}</td>
+            <td>${winnerHtml(g.winner)}</td>
+            <td style="display:flex;gap:4px;align-items:center">
+              <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px" onclick="event.stopPropagation();openEdit('${dk}',${gi})">✎</button>
+              <button class="btn btn-danger" onclick="event.stopPropagation();deleteGame('${dk}',${gi})">✕</button>
+            </td>`;
+          tbody.appendChild(subRow);
+        });
+      }
+    });
+
+    if(noData) noData.style.display = rowsAdded>0 ? 'none' : 'block';
+  } catch(err) {
+    console.error('renderSessionTable fout:', err);
+  }
+}
+
+function renderTotalTable(){
+  const games=allGames(); const n=games.length;
+  const fSess=filteredSessions();
+  const tbody=document.getElementById('totalBody');
+  document.getElementById('noDataTotal').style.display=n===0?'block':'none';
+  tbody.innerHTML='';
+
+  [[0,'p1',playerNames[0],'var(--gold2)'],[1,'p2',playerNames[1],'var(--ice)']].forEach(([pi,pk,name,color])=>{
+    const kills=games.reduce((s,g)=>s+g[pk].kills,0);
+    const deaths=games.reduce((s,g)=>s+g[pk].deaths,0);
+    const wins1=games.filter(g=>g[pk].place===1).length;
+    const gameWins=games.filter(g=>g.winner===pi).length;
+    const sessWins=fSess.filter(s=>aggSess(s).sessWinner===pi).length;
+    const bestKd=games.length?Math.max(...games.map(g=>kdVal(g[pk].kills,g[pk].deaths))):0;
+    tbody.innerHTML+=`<tr>
+      <td style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:${color};letter-spacing:2px">${name}</td>
+      <td style="color:${color}">${fSess.length}</td>
+      <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:${color}">${kills}</td>
+      <td style="color:${color}">${deaths}</td>
+      <td style="color:${color}">${kdStr(kills,deaths)}</td>
+      <td style="color:${color}">${bestKd.toFixed(2)}</td>
+      <td style="color:${color}">${wins1>0?`<span class="place-badge place-1">×${wins1}</span>`:'0'}</td>
+      <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:${color}">${gameWins}</td>
+      <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:${color}">${sessWins}</td>
+    </tr>`;
+  });
+}
+
+function initFlameCanvas(id, bar, sfx) {
+  const canvas = document.getElementById(id);
+  if(!canvas) return;
+  canvas.width = bar.offsetWidth;
+  canvas.height = bar.offsetHeight;
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+
+  class Tongue {
+    constructor(x) { this.init(x); }
+    init(x) {
+      this.baseX    = x ?? Math.random()*W;
+      this.x        = this.baseX;
+      this.h        = 13 + Math.random()*21;
+      this.tgtH     = 13 + Math.random()*21;
+      this.baseW    = 5  + Math.random()*8;
+      this.bellyW   = this.baseW*(1.2+Math.random()*0.5);
+      this.bellyFrac= 0.28+Math.random()*0.18;
+      this.leanDir  = Math.random()<0.5?1:-1;
+      this.lean     = this.leanDir*(3+Math.random()*7);
+      this.curl     = -this.leanDir*(1+Math.random()*3);
+      this.innerSc  = 0.45+Math.random()*0.2;
+      this.phase    = Math.random()*Math.PI*2;
+      this.swayAmp  = 1+Math.random()*2.5;
+      this.swaySpd  = 0.005+Math.random()*0.009;
+      this.growSpd  = 0.025+Math.random()*0.03;
+      this.life     = 0.5+Math.random()*0.5;
+      this.age      = 0;
+      this.maxAge   = 100+Math.random()*140;
+    }
+    update() {
+      this.age++; this.phase+=this.swaySpd;
+      this.x=this.baseX+Math.sin(this.phase)*this.swayAmp;
+      if(Math.random()<0.006) this.lean+=(Math.random()-0.5)*2;
+      this.h+=(this.tgtH-this.h)*this.growSpd;
+      if(Math.abs(this.h-this.tgtH)<1) this.tgtH=12+Math.random()*24;
+      if(this.age>this.maxAge*0.68) this.life-=0.012;
+      return this.life>0;
+    }
+    drawShape(cx,h,bW,belW,belFrac,lean,curl) {
+      const tipY=H-h, tipX=cx+lean, bellyY=H-h*belFrac;
+      ctx.beginPath();
+      ctx.moveTo(cx-bW,H);
+      ctx.bezierCurveTo(cx-belW*1.05,H-h*0.1,cx-belW,bellyY+4,cx-belW*0.6,bellyY);
+      ctx.bezierCurveTo(cx-belW*0.05,bellyY-h*0.22,tipX-2+curl,tipY+h*0.08,tipX+curl,tipY);
+      ctx.bezierCurveTo(tipX+curl*0.5+1.5,tipY+h*0.1,cx+belW*0.3,bellyY-h*0.15,cx+belW*0.55,bellyY+2);
+      ctx.bezierCurveTo(cx+belW*0.95,bellyY+5,cx+bW*1.02,H-h*0.08,cx+bW,H);
+      ctx.closePath();
+    }
+    draw() {
+      const a=this.life;
+      const g=ctx.createLinearGradient(this.x,H,this.x+this.lean,H-this.h);
+      g.addColorStop(0,`rgba(255,240,180,${a})`); g.addColorStop(0.08,`rgba(255,180,20,${a*.95})`);
+      g.addColorStop(0.3,`rgba(255,75,0,${a*.85})`); g.addColorStop(0.65,`rgba(200,15,0,${a*.55})`);
+      g.addColorStop(1,`rgba(80,0,0,0)`);
+      ctx.save(); ctx.shadowBlur=8; ctx.shadowColor=`rgba(255,60,0,${a*.4})`;
+      this.drawShape(this.x,this.h,this.baseW,this.bellyW,this.bellyFrac,this.lean,this.curl);
+      ctx.fillStyle=g; ctx.fill();
+      const ih=this.h*this.innerSc, ibW=this.baseW*.55, ibelW=this.bellyW*.5;
+      const ig=ctx.createLinearGradient(this.x,H,this.x+this.lean*.4,H-ih);
+      ig.addColorStop(0,`rgba(255,255,230,${a*.95})`); ig.addColorStop(0.25,`rgba(255,230,60,${a*.85})`);
+      ig.addColorStop(0.7,`rgba(255,140,0,${a*.5})`); ig.addColorStop(1,`rgba(255,60,0,0)`);
+      this.drawShape(this.x,ih,ibW,ibelW,this.bellyFrac*.85,this.lean*.35,this.curl*.4);
+      ctx.fillStyle=ig; ctx.fill(); ctx.restore();
+    }
+  }
+
+  const tongues=[];
+  let px=0;
+  while(px<W+24){ const t=new Tongue(px); t.age=Math.floor(Math.random()*t.maxAge); tongues.push(t); px+=6+Math.random()*9; }
+
+  const embers=[];
+  function spawnEmber(){ return {x:W*.35+Math.random()*W*.65,y:H-2,vx:(Math.random()-.5)*.5,vy:-(0.2+Math.random()*.5),life:1,size:.6+Math.random()*1.2}; }
+
+  let lastFrame = 0;
+  function loop(ts){
+    if(ts - lastFrame < 32){ flameAnimIds[sfx]=requestAnimationFrame(loop); return; }
+    lastFrame = ts;
+    // Stop if canvas detached from DOM
+    if(!canvas.isConnected){ flameAnimIds[sfx]=null; return; }
+    ctx.clearRect(0,0,W,H);
+    const bg=ctx.createLinearGradient(0,H,0,H-10);
+    bg.addColorStop(0,'rgba(255,70,0,.22)'); bg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=bg; ctx.fillRect(0,H-10,W,10);
+    tongues.forEach((t,i)=>{ t.draw(); if(!t.update()) tongues[i].init(t.baseX+(Math.random()-.5)*4); });
+    if(Math.random()<0.22) embers.push(spawnEmber());
+    for(let i=embers.length-1;i>=0;i--){
+      const e=embers[i]; e.x+=e.vx; e.y+=e.vy; e.life-=0.009;
+      if(e.life<=0){embers.splice(i,1);continue;}
+      ctx.beginPath(); ctx.arc(e.x,e.y,e.size,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,210,60,${e.life*.8})`; ctx.fill();
+    }
+    flameAnimIds[sfx]=requestAnimationFrame(loop);
+  }
+  flameAnimIds[sfx]=requestAnimationFrame(loop);
+}
+
+function initCombo(){
+  const canvas = document.getElementById('comboChart');
+  if(!canvas || typeof Chart === 'undefined') return;
+  const gc = 'rgba(255,255,255,.04)';
+  const tk = {color:'#3e5060', font:{family:'JetBrains Mono', size:9}};
+
+  const comboPlugin = {
+    id:'comboPlugin',
+    afterDatasetsDraw(chart){
+      const ctx = chart.ctx;
+      const area = chart.chartArea;
+
+      // Win labels inside bars
+      [0,1].forEach(di=>{
+        const color = di===0 ? '#f5890f' : '#33ccff';
+        chart.getDatasetMeta(di).data.forEach((bar,i)=>{
+          const val = chart.data.datasets[di].data[i];
+          if(!val) return;
+          ctx.save();
+          ctx.fillStyle = color;
+          ctx.font = 'bold 11px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(val, bar.x, bar.y + bar.height/2);
+          ctx.restore();
+        });
+      });
+
+      // K/D pill badges
+      const avg1 = chart.data.datasets[2].data.length ? chart.data.datasets[2].data.reduce((a,b)=>a+b,0)/chart.data.datasets[2].data.length : 0;
+      const avg2 = chart.data.datasets[3].data.length ? chart.data.datasets[3].data.reduce((a,b)=>a+b,0)/chart.data.datasets[3].data.length : 0;
+
+      [2,3].forEach(di=>{
+        const data = chart.data.datasets[di].data;
+        const avg  = di===2 ? avg1 : avg2;
+        const preferOffset = di===2 ? -22 : 20;
+        const pillH = 14, pillW = 30;
+
+        chart.getDatasetMeta(di).data.forEach((pt,i)=>{
+          const v = data[i];
+          if(v === undefined) return;
+          const aboveAvg  = v >= avg;
+          const pillColor = aboveAvg ? 'rgba(46,232,122,1)'  : 'rgba(224,48,80,1)';
+          const pillBg    = aboveAvg ? '#0d2a1a' : '#2a0d12';
+          const pillBorder= aboveAvg ? 'rgba(46,232,122,.8)' : 'rgba(224,48,80,.7)';
+
+          let pillCY = pt.y + preferOffset;
+
+          // Avoid overlapping bar win labels
+          if(di===3){
+            const bar0 = chart.getDatasetMeta(0).data[i];
+            const bar1 = chart.getDatasetMeta(1).data[i];
+            const barTop = Math.min(bar0?bar0.y:Infinity, bar1?bar1.y:Infinity);
+            if(pillCY + pillH/2 > barTop - 4) pillCY = barTop - 4 - pillH/2;
+          }
+          pillCY = Math.max(area.top + pillH/2 + 2, Math.min(area.bottom - pillH/2 - 2, pillCY));
+
+          const px = pt.x - pillW/2, py = pillCY - pillH/2;
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(px, py, pillW, pillH, 3);
+          ctx.fillStyle = pillBg; ctx.fill();
+          ctx.strokeStyle = pillBorder; ctx.lineWidth = .8; ctx.stroke();
+          ctx.fillStyle = pillColor;
+          ctx.font = '600 8.5px JetBrains Mono, monospace';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(v.toFixed(1), pt.x, pillCY);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  comboChart = new Chart(canvas, {
+    data:{
+      labels:[],
+      datasets:[
+        {type:'bar',label:'',data:[],backgroundColor:'rgba(217,106,0,.5)',borderColor:'rgba(217,106,0,.75)',borderWidth:1,borderRadius:2,yAxisID:'yWins'},
+        {type:'bar',label:'',data:[],backgroundColor:'rgba(0,174,221,.4)',borderColor:'rgba(0,174,221,.65)',borderWidth:1,borderRadius:2,yAxisID:'yWins'},
+        {type:'line',label:'',data:[],segment:{borderColor:ctx=>ctx.p1.parsed.y>=(ctx.chart.data.datasets[2]._avg||0)?'#2ee87a':'#e03050'},pointBackgroundColor:[],pointBorderColor:'#03040a',pointBorderWidth:2,borderWidth:2,tension:.4,pointRadius:4,backgroundColor:'transparent',yAxisID:'yKD'},
+        {type:'line',label:'',data:[],segment:{borderColor:ctx=>ctx.p1.parsed.y>=(ctx.chart.data.datasets[3]._avg||0)?'#2ee87a':'#e03050'},pointBackgroundColor:[],pointBorderColor:'#03040a',pointBorderWidth:2,borderWidth:2,tension:.4,pointRadius:4,backgroundColor:'transparent',yAxisID:'yKD',borderDash:[4,3]}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:30, bottom:28}},
+      animation:{duration:500, easing:'easeOutQuart'},
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'rgba(3,4,6,.97)', borderColor:'rgba(217,106,0,.22)', borderWidth:1,
+          titleColor:'#f5890f', bodyColor:'#7a8fa0',
+          titleFont:{family:'Cinzel',size:11}, bodyFont:{family:'JetBrains Mono',size:10},
+          callbacks:{
+            label:item=>item.datasetIndex<2
+              ? `  ${item.dataset.label}: ${item.parsed.y} wins`
+              : `  ${item.dataset.label}: ${item.parsed.y.toFixed(2)} K/D`,
+            afterBody:items=>{
+              const w1=items.find(i=>i.datasetIndex===0)?.parsed.y??0;
+              const w2=items.find(i=>i.datasetIndex===1)?.parsed.y??0;
+              return ['', w1>w2?`  🏅 ${playerNames[0]} wint sessie`:w2>w1?`  🏅 ${playerNames[1]} wint sessie`:'  🤝 Tie'];
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ticks:tk, grid:{color:gc}, border:{color:gc}},
+        yWins:{type:'linear', position:'left', display:false, beginAtZero:true, ticks:{stepSize:1}},
+        yKD:{type:'linear', position:'right', ticks:{...tk, callback:v=>v.toFixed(1)}, grid:{display:false}, border:{color:gc}, beginAtZero:true}
+      }
+    },
+    plugins:[comboPlugin]
+  });
+}
+
+function updateCombo(){
+  if(!comboChart) return;
+  const fSess = filteredSessions();
+  const labels=[], w1=[], w2=[], kd1=[], kd2=[];
+
+  fSess.forEach(sess=>{
+    const g = modeFilter==='all' ? sess.games : sess.games.filter(x=>x.mode===modeFilter);
+    if(!g.length) return;
+    labels.push(sess.date);
+    w1.push(g.filter(x=>x.winner===0).length);
+    w2.push(g.filter(x=>x.winner===1).length);
+    const getKd=(pk)=>{ const k=g.reduce((s,x)=>s+x[pk].kills,0); const d=g.reduce((s,x)=>s+x[pk].deaths,0); return parseFloat(kdVal(k,d).toFixed(2)); };
+    kd1.push(getKd('p1'));
+    kd2.push(getKd('p2'));
+  });
+
+  const avg1 = kd1.length ? kd1.reduce((a,b)=>a+b,0)/kd1.length : 0;
+  const avg2 = kd2.length ? kd2.reduce((a,b)=>a+b,0)/kd2.length : 0;
+
+  comboChart.data.labels = labels;
+  comboChart.data.datasets[0].data  = w1;  comboChart.data.datasets[0].label = playerNames[0];
+  comboChart.data.datasets[1].data  = w2;  comboChart.data.datasets[1].label = playerNames[1];
+  comboChart.data.datasets[2].data  = kd1; comboChart.data.datasets[2].label = playerNames[0];
+  comboChart.data.datasets[3].data  = kd2; comboChart.data.datasets[3].label = playerNames[1];
+
+  // Dynamic bar scale — max wins * 4 so bars stay compact, minimum 8
+  const maxWins = Math.max(...w1, ...w2, 1);
+  comboChart.options.scales.yWins.max = Math.max(maxWins * 4, 8);
+  comboChart.data.datasets[2]._avg  = avg1;
+  comboChart.data.datasets[3]._avg  = avg2;
+  comboChart.data.datasets[2].pointBackgroundColor = kd1.map(v=>v>=avg1?'#2ee87a':'#e03050');
+  comboChart.data.datasets[3].pointBackgroundColor = kd2.map(v=>v>=avg2?'#2ee87a':'#e03050');
+  comboChart.data.datasets[2].segment = {borderColor: ctx=>ctx.p1.parsed.y>=avg1?'#2ee87a':'#e03050'};
+  comboChart.data.datasets[3].segment = {borderColor: ctx=>ctx.p1.parsed.y>=avg2?'#2ee87a':'#e03050'};
+  comboChart.update();
+
+  const tw1 = w1.reduce((a,b)=>a+b,0), tw2 = w2.reduce((a,b)=>a+b,0);
+  const cl1=document.getElementById('combo-lbl1'); if(cl1) cl1.textContent=playerNames[0];
+  const cl2=document.getElementById('combo-lbl2'); if(cl2) cl2.textContent=playerNames[1];
+  const ct1=document.getElementById('combo-total1'); if(ct1) ct1.textContent=tw1;
+  const ct2=document.getElementById('combo-total2'); if(ct2) ct2.textContent=tw2;
+}
+
+
+
+function spawnSparks(){
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999';
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const W = canvas.width, H = canvas.height;
+
+  const colors = ['#f5890f','#ffd84d','#ff8c1a','#ffffff','#ffcc00','#ff6600','#ff3300'];
+  const particles = [];
+
+  // Burst from multiple points across top area
+  const origins = [
+    {x: W*0.2, y: H*0.3},
+    {x: W*0.5, y: H*0.2},
+    {x: W*0.8, y: H*0.3},
+  ];
+
+  origins.forEach(o => {
+    for(let i = 0; i < 55; i++){
+      const angle = (Math.random() * Math.PI * 2);
+      const speed = 2 + Math.random() * 6;
+      particles.push({
+        x: o.x, y: o.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 3,
+        life: 1,
+        decay: 0.012 + Math.random() * 0.018,
+        size: 1.5 + Math.random() * 3,
+        color: colors[Math.floor(Math.random()*colors.length)],
+        gravity: 0.12 + Math.random() * 0.08,
+        // Some are streaks (long lines)
+        streak: Math.random() < 0.4,
+        trail: []
+      });
+    }
+  });
+
+  function loop(){
+    ctx.clearRect(0,0,W,H);
+    let alive = false;
+    particles.forEach(p => {
+      if(p.life <= 0) return;
+      alive = true;
+      p.trail.push({x:p.x, y:p.y});
+      if(p.trail.length > 6) p.trail.shift();
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += p.gravity;
+      p.vx *= 0.98;
+      p.life -= p.decay;
+      const a = Math.max(0, p.life);
+
+      if(p.streak && p.trail.length > 1){
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(p.trail[0].x, p.trail[0].y);
+        p.trail.forEach(t => ctx.lineTo(t.x, t.y));
+        ctx.strokeStyle = p.color.replace(')',`,${a*.7})`).replace('rgb','rgba').replace('#', 'rgba(').replace('rgba(', 'rgba(') ;
+        ctx.lineWidth = p.size * 0.5;
+        ctx.strokeStyle = `rgba(255,180,30,${a*0.6})`;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = p.color;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * a, 0, Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = a;
+      ctx.fill();
+      ctx.restore();
+    });
+
+    if(alive) requestAnimationFrame(loop);
+    else canvas.remove();
+  }
+  loop();
+
+  // Auto remove after 4s just in case
+  setTimeout(()=>{ if(canvas.parentNode) canvas.remove(); }, 4000);
+}
+
+function playVictorySound(){
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+    notes.forEach((freq, i)=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      const t = ctx.currentTime + i * 0.12;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.start(t); osc.stop(t + 0.3);
+    });
+  } catch(e) {}
+}
+
+function flashPRStat(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.remove('pr-flash');
+  void el.offsetWidth;
+  el.classList.add('pr-flash');
+}
+
+function checkAndFlashPR(p1, p2){
+  const allG = sessions.flatMap(s=>s.games);
+  if(allG.length < 2) return; // need previous games to compare
+  const prev = allG.slice(0,-1); // all except last
+  if(!prev.length) return;
+  const maxK1 = Math.max(...prev.map(g=>g.p1.kills));
+  const maxK2 = Math.max(...prev.map(g=>g.p2.kills));
+  const maxKd1 = Math.max(...prev.map(g=>kdVal(g.p1.kills,g.p1.deaths)));
+  const maxKd2 = Math.max(...prev.map(g=>kdVal(g.p2.kills,g.p2.deaths)));
+  if(p1.kills > maxK1) flashPRStat('perf-maxkills1');
+  if(p2.kills > maxK2) flashPRStat('perf-maxkills2');
+  if(kdVal(p1.kills,p1.deaths) > maxKd1) flashPRStat('perf-maxkd1');
+  if(kdVal(p2.kills,p2.deaths) > maxKd2) flashPRStat('perf-maxkd2');
+}
+
+function updatePerformance(){
+  const games = allGames();
+  const noData = games.length === 0;
+
+  const dash = (el) => { if(el){ el.textContent='—'; el.style.color='var(--silver)'; } };
+
+  ['p1','p2'].forEach((pk,pi)=>{
+    const sfx = pi+1;
+    document.getElementById(`perf-name${sfx}`).textContent = playerNames[pi];
+    if(noData){
+      dash(document.getElementById(`perf-maxkills${sfx}`));
+      dash(document.getElementById(`perf-maxkd${sfx}`));
+      dash(document.getElementById(`perf-avgkills${sfx}`));
+      dash(document.getElementById(`perf-avgplace${sfx}`));
+      return;
+    }
+    const maxKills  = Math.max(...games.map(g=>g[pk].kills));
+    const maxKd     = Math.max(...games.map(g=>kdVal(g[pk].kills,g[pk].deaths)));
+    const avgKills  = games.reduce((s,g)=>s+g[pk].kills,0)/games.length;
+    const avgPlaceRaw = games.reduce((s,g)=>s+g[pk].place,0)/games.length;
+    const mkEl = document.getElementById(`perf-maxkills${sfx}`);
+    const mkdEl = document.getElementById(`perf-maxkd${sfx}`);
+    const akEl = document.getElementById(`perf-avgkills${sfx}`);
+    if(mkEl){ mkEl.style.color=''; animateVal(mkEl, maxKills, 0); }
+    if(mkdEl){ mkdEl.style.color=''; animateVal(mkdEl, parseFloat(maxKd.toFixed(2)), 2); }
+    if(akEl){ akEl.style.color=''; animateVal(akEl, parseFloat(avgKills.toFixed(1)), 1); }
+    const avgPlaceEl = document.getElementById(`perf-avgplace${sfx}`);
+    if(avgPlaceEl){ avgPlaceEl.style.color=''; animateVal(avgPlaceEl, parseFloat(avgPlaceRaw.toFixed(1)), 1); }
+  });
+
+  const n = games.length;
+  const setPlacement = (id, val) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(noData){ el.textContent='—'; el.style.color='var(--silver)'; }
+    else { el.style.color=''; animateVal(el, val, 0); }
+  };
+  setPlacement('pl-1',     noData ? 0 : games.filter(g=>g.p1.place===1).length);
+  setPlacement('pl-top5',  noData ? 0 : games.filter(g=>g.p1.place>1&&g.p1.place<=5).length);
+  setPlacement('pl-top10', noData ? 0 : games.filter(g=>g.p1.place>5&&g.p1.place<=10).length);
+  setPlacement('pl-top20', noData ? 0 : games.filter(g=>g.p1.place>10&&g.p1.place<=20).length);
+  setPlacement('pl-rest',  noData ? 0 : games.filter(g=>g.p1.place>20).length);
+  setPlacement('pl-total', n);
+}
+
+let renamingPlayer=0;
+function openRename(pi){
+  renamingPlayer=pi;
+  document.getElementById('renameTitle').textContent=`Player ${pi+1} — Change name`;
+  const input = document.getElementById('renameInput');
+  input.value=playerNames[pi];
+  input.maxLength=20;
+  input.dataset.initialsFor='';
+  document.getElementById('renameOverlay').dataset.mode='name';
+  document.getElementById('renameOverlay').classList.add('open');
+  setTimeout(()=>{ input.focus(); input.select(); },80);
+}
+function closeRename(){ document.getElementById('renameOverlay').classList.remove('open'); }
+function maybeCloseRename(e){ if(e.target===document.getElementById('renameOverlay')) closeRename(); }
+function confirmRename(){
+  const overlay = document.getElementById('renameOverlay');
+  const val = document.getElementById('renameInput').value.trim().toUpperCase();
+  if(!val) return;
+  if(overlay.dataset.mode === 'initials'){
+    const pi = parseInt(document.getElementById('renameInput').dataset.initialsFor);
+    playerInitials[pi] = val.slice(0,3);
+    localStorage.setItem('wz_initials', JSON.stringify(playerInitials));
+    updateInitials();
+  } else {
+    playerNames[renamingPlayer] = document.getElementById('renameInput').value.trim();
+    savePlayers(); render();
+  }
+  closeRename();
+}
+function renameKey(e){ if(e.key==='Enter') confirmRename(); if(e.key==='Escape') closeRename(); }
+
+// Enter to save
+// Tab flow: p1kills → p1deaths → p2kills → p2deaths → opslaan
+const tabOrder = ['p1kills','p1deaths','p2kills','p2deaths'];
+tabOrder.forEach((id, i) => {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('keydown', e=>{
+    if(e.key === 'Tab' && !e.shiftKey){
+      e.preventDefault();
+      if(i < tabOrder.length-1){
+        document.getElementById(tabOrder[i+1]).focus();
+      } else {
+        document.querySelector('.modal-footer .btn-primary').focus();
+      }
+    }
+  });
+});
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !document.querySelector('.rename-overlay.open') && !document.getElementById('editModal').classList.contains('open')){
+    const active = document.activeElement;
+    const inPanel = active && tabOrder.includes(active.id);
+    if(inPanel || active === document.querySelector('.modal-footer .btn-primary')) saveGame();
+  }
+});
+
+init();
+</script>
+</body>
+</html>

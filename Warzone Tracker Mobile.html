@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Warzone Tracker · Mobile</title>
+<style>
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --gold:#b85500; --gold2:#d96a00; --gold3:#f5890f;
+    --ice:#00aeDD; --ice2:#33ccff;
+    --bg:#030406; --surface:#090b0f; --surface2:#0c0f14;
+    --rim:rgba(255,255,255,.07); --platinum:#e2e8f0;
+    --silver:#7a8fa0; --pewter:#3e5060; --ruby:#e03050; --emerald:#2ee87a;
+  }
+  html,body{ height:100%; background:var(--bg); color:var(--platinum); font-family:'Segoe UI',system-ui,sans-serif; }
+  body{ display:flex; flex-direction:column; min-height:100vh; padding:0; overflow-x:hidden; }
+
+  .header{
+    background:var(--surface2); border-bottom:1px solid var(--rim);
+    padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:10;
+  }
+  .header-title{ font-size:13px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--gold3); }
+  .header-sub{ font-size:10px; color:var(--silver); letter-spacing:1px; margin-top:2px; }
+  .sync-dot{ width:8px; height:8px; border-radius:50%; background:var(--pewter); transition:background .3s; }
+  .sync-dot.connected{ background:var(--emerald); box-shadow:0 0 6px var(--emerald); }
+  .sync-dot.syncing{ background:var(--gold2); animation:pulse .8s ease-in-out infinite; }
+  .sync-dot.error{ background:var(--ruby); }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .content{ flex:1; padding:16px; display:flex; flex-direction:column; gap:14px; max-width:500px; width:100%; margin:0 auto; }
+
+  .section-label{
+    font-size:9px; letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--pewter); margin-bottom:8px; font-family:monospace;
+  }
+
+  /* Session row */
+  .session-bar{
+    background:var(--surface); border:1px solid var(--rim); border-left:3px solid var(--gold2);
+    padding:10px 14px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .session-info{ font-size:12px; color:var(--silver); font-family:monospace; }
+  .session-info strong{ color:var(--gold3); }
+  .new-session-btn{
+    font-size:10px; letter-spacing:2px; text-transform:uppercase; font-family:monospace;
+    background:transparent; border:1px solid rgba(217,106,0,.4); color:var(--gold2);
+    padding:5px 12px; cursor:pointer;
+  }
+  .new-session-btn:active{ opacity:.7; }
+
+  /* Position grid */
+  .pos-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .pos-btn{
+    background:var(--surface); border:1px solid var(--rim);
+    color:var(--silver); font-size:13px; font-weight:600;
+    padding:14px 4px; cursor:pointer; text-align:center;
+    transition:all .15s; letter-spacing:.5px;
+  }
+  .pos-btn:active{ transform:scale(.95); }
+  .pos-btn.active{ background:rgba(217,106,0,.15); border-color:rgba(217,106,0,.6); color:var(--gold3); }
+
+  /* Mode toggle */
+  .mode-wrap{ display:flex; gap:8px; }
+  .mode-btn{
+    flex:1; padding:12px; background:var(--surface); border:1px solid var(--rim);
+    color:var(--silver); font-size:12px; font-weight:600; letter-spacing:1px;
+    text-transform:uppercase; cursor:pointer; transition:all .15s; font-family:monospace;
+  }
+  .mode-btn:active{ transform:scale(.97); }
+  .mode-btn.active{ background:rgba(217,106,0,.12); border-color:rgba(217,106,0,.5); color:var(--gold3); }
+
+  /* Player blocks */
+  .player-block{
+    background:var(--surface); border:1px solid var(--rim);
+    border-radius:0; overflow:hidden;
+  }
+  .player-block.p1{ border-top:2px solid rgba(217,106,0,.6); }
+  .player-block.p2{ border-top:2px solid rgba(0,174,221,.5); }
+  .player-block-header{
+    padding:10px 16px; display:flex; align-items:center; justify-content:space-between;
+    background:rgba(255,255,255,.02);
+  }
+  .player-block-name{ font-size:14px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+  .p1 .player-block-name{ color:var(--gold2); }
+  .p2 .player-block-name{ color:var(--ice); }
+  .player-tag{
+    font-size:9px; letter-spacing:2px; padding:3px 8px; border:1px solid;
+    font-family:monospace; font-weight:600;
+  }
+  .p1 .player-tag{ color:var(--gold2); border-color:rgba(217,106,0,.3); }
+  .p2 .player-tag{ color:var(--ice); border-color:rgba(0,174,221,.3); }
+  .player-inputs{ display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--rim); }
+  .input-cell{ background:var(--surface); padding:12px 16px; }
+  .input-lbl{ font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--pewter); margin-bottom:6px; font-family:monospace; }
+  .num-input{
+    width:100%; background:transparent; border:none; outline:none;
+    font-size:32px; font-weight:900; color:var(--platinum);
+    font-family:'Barlow Condensed',system-ui,sans-serif;
+    -webkit-appearance:none; appearance:none;
+    padding:0; line-height:1;
+  }
+  .p1-block .num-input:focus{ color:var(--gold3); }
+  .p2-block .num-input:focus{ color:var(--ice2); }
+
+  /* Save button */
+  .save-btn{
+    width:100%; padding:18px; font-size:16px; font-weight:700; letter-spacing:3px;
+    text-transform:uppercase; background:linear-gradient(135deg, var(--gold) 0%, var(--gold2) 50%, var(--gold3) 100%);
+    border:none; color:#1a0800; cursor:pointer; font-family:monospace;
+    transition:all .15s;
+  }
+  .save-btn:active{ transform:scale(.98); opacity:.9; }
+  .save-btn:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
+
+  /* Toast */
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+    background:var(--surface2); border:1px solid rgba(217,106,0,.4); border-left:3px solid var(--gold2);
+    color:var(--gold3); padding:12px 24px; font-size:12px; letter-spacing:1px;
+    font-family:monospace; text-transform:uppercase; transition:transform .3s ease;
+    white-space:nowrap; z-index:100;
+  }
+  .toast.show{ transform:translateX(-50%) translateY(0); }
+  .toast.error{ border-color:rgba(224,48,80,.4); border-left-color:var(--ruby); color:var(--ruby); }
+
+  .status-bar{
+    background:var(--surface); border:1px solid var(--rim);
+    padding:10px 14px; display:flex; align-items:center; gap:8px;
+    font-size:10px; color:var(--silver); font-family:monospace; letter-spacing:1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">⚡ Warzone</div>
+    <div class="header-sub" id="sessionLabel">Loading...</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span style="font-size:9px;color:var(--pewter);font-family:monospace;letter-spacing:1px" id="syncLabel">connecting</span>
+    <div class="sync-dot" id="syncDot"></div>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- Session -->
+  <div>
+    <div class="section-label">Session</div>
+    <div class="session-bar">
+      <div class="session-info">
+        <div id="sessionDate">—</div>
+        <div style="margin-top:2px;font-size:10px" id="gameCount">0 games this session</div>
+      </div>
+      <button class="new-session-btn" onclick="newSession()">+ New</button>
+    </div>
+  </div>
+
+  <!-- Position -->
+  <div>
+    <div class="section-label">Final position</div>
+    <div class="pos-grid">
+      <button class="pos-btn" onclick="setPlace(1)">🏆 #1</button>
+      <button class="pos-btn active" onclick="setPlace(2)">#2</button>
+      <button class="pos-btn" onclick="setPlace(3)">#3</button>
+      <button class="pos-btn" onclick="setPlace(4)">#4</button>
+      <button class="pos-btn" onclick="setPlace(5)">#5</button>
+      <button class="pos-btn" onclick="setPlace(10)">Top 10</button>
+      <button class="pos-btn" onclick="setPlace(20)">Top 20</button>
+      <button class="pos-btn" onclick="setPlace(21)">#20+</button>
+    </div>
+  </div>
+
+  <!-- Mode -->
+  <div>
+    <div class="section-label">Mode</div>
+    <div class="mode-wrap">
+      <button class="mode-btn active" id="modeBR" onclick="setMode('Battle Royale')">Battle Royale</button>
+      <button class="mode-btn" id="modeRE" onclick="setMode('Resurgence')">Resurgence</button>
+    </div>
+  </div>
+
+  <!-- P1 -->
+  <div class="player-block p1 p1-block">
+    <div class="player-block-header">
+      <div class="player-block-name" id="p1name">Player 1</div>
+      <div class="player-tag">P1</div>
+    </div>
+    <div class="player-inputs">
+      <div class="input-cell">
+        <div class="input-lbl">Kills</div>
+        <input class="num-input" id="p1kills" type="number" min="0" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-cell">
+        <div class="input-lbl">Deaths</div>
+        <input class="num-input" id="p1deaths" type="number" min="0" placeholder="0" inputmode="numeric">
+      </div>
+    </div>
+  </div>
+
+  <!-- P2 -->
+  <div class="player-block p2 p2-block">
+    <div class="player-block-header">
+      <div class="player-block-name" id="p2name">Player 2</div>
+      <div class="player-tag">P2</div>
+    </div>
+    <div class="player-inputs">
+      <div class="input-cell">
+        <div class="input-lbl">Kills</div>
+        <input class="num-input" id="p2kills" type="number" min="0" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-cell">
+        <div class="input-lbl">Deaths</div>
+        <input class="num-input" id="p2deaths" type="number" min="0" placeholder="0" inputmode="numeric">
+      </div>
+    </div>
+  </div>
+
+  <button class="save-btn" id="saveBtn" onclick="saveGame()">✓  Save game</button>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_WZzyOarT8F3oVj91UYJgD5HES3iFC4A",
+    authDomain: "warzone-tracker-2c362.firebaseapp.com",
+    databaseURL: "https://warzone-tracker-2c362-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "warzone-tracker-2c362",
+    storageBucket: "warzone-tracker-2c362.firebasestorage.app",
+    messagingSenderId: "757574907604",
+    appId: "1:757574907604:web:9422ab8494dec09123ed41"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  window._fbSet   = (path, data) => set(ref(db, path), data);
+  window._fbListen = (path, cb) => onValue(ref(db, path), snap => cb(snap.val()));
+  window._fbReady = true;
+  document.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<script>
+  // State
+  let sessions      = [];
+  let playerNames   = ['Player 1', 'Player 2'];
+  let playerInitials= ['', ''];
+  let currentKey    = null;
+  let selectedPlace = 2;
+  let selectedMode  = 'Battle Royale';
+
+  // UI helpers
+  const $ = id => document.getElementById(id);
+  const dot  = $('syncDot');
+  const lbl  = $('syncLabel');
+
+  function setSync(state){
+    dot.className = 'sync-dot ' + state;
+    lbl.textContent = state === 'connected' ? 'live' : state === 'syncing' ? 'saving...' : state === 'error' ? 'error' : 'connecting';
+  }
+
+  function showToast(msg, isError=false){
+    const t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError?' error':'');
+    setTimeout(()=>t.className='toast'+(isError?' error':''), 3000);
+  }
+
+  function todayKey(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function keyToDate(key){
+    const base = key.split('_')[0];
+    const [y,m,d] = base.split('-');
+    return `${d}-${m}-${y}`;
+  }
+
+  function getActiveSess(){
+    if(!currentKey) return null;
+    return sessions.find(s=>s.dateKey===currentKey) || null;
+  }
+
+  function updateUI(){
+    // Player names
+    $('p1name').textContent = playerNames[0] || 'Player 1';
+    $('p2name').textContent = playerNames[1] || 'Player 2';
+
+    // Session info
+    const key = currentKey || todayKey();
+    const sess = sessions.find(s=>s.dateKey===key);
+    const parts = key.split('_');
+    const sessNum = parts[1] ? ` · Session ${parseInt(parts[1])+1}` : '';
+    $('sessionDate').innerHTML = `<strong>${keyToDate(key)}</strong>${sessNum}`;
+    $('gameCount').textContent = sess ? `${sess.games.length} game${sess.games.length!==1?'s':''} this session` : '0 games this session';
+    $('sessionLabel').textContent = keyToDate(key) + sessNum;
+  }
+
+  function setPlace(p){
+    selectedPlace = p;
+    document.querySelectorAll('.pos-btn').forEach(b=>b.classList.remove('active'));
+    event.target.classList.add('active');
+  }
+
+  function setMode(m){
+    selectedMode = m;
+    $('modeBR').className = 'mode-btn' + (m==='Battle Royale'?' active':'');
+    $('modeRE').className  = 'mode-btn' + (m==='Resurgence'?' active':'');
+  }
+
+  function newSession(){
+    const base = todayKey();
+    const existing = sessions.filter(s=>s.dateKey.startsWith(base));
+    const newIdx = existing.length;
+    currentKey = newIdx === 0 ? base : `${base}_${newIdx}`;
+    updateUI();
+    showToast('New session started');
+  }
+
+  function kdVal(k,d){ return d===0 ? k : k/d; }
+
+  function saveGame(){
+    const p1 = { kills: parseInt($('p1kills').value)||0, deaths: parseInt($('p1deaths').value)||0, place: selectedPlace };
+    const p2 = { kills: parseInt($('p2kills').value)||0, deaths: parseInt($('p2deaths').value)||0, place: selectedPlace };
+
+    // Winner logic
+    let winner;
+    if(p1.kills > p2.kills) winner = 0;
+    else if(p2.kills > p1.kills) winner = 1;
+    else {
+      const kd1 = kdVal(p1.kills, p1.deaths);
+      const kd2 = kdVal(p2.kills, p2.deaths);
+      winner = kd1 > kd2 ? 0 : kd2 > kd1 ? 1 : -1;
+    }
+
+    const key = currentKey || todayKey();
+    let sess = sessions.find(s=>s.dateKey===key);
+    if(!sess){
+      sess = { dateKey:key, date:keyToDate(key), games:[] };
+      sessions.push(sess);
+    }
+    currentKey = key;
+    sess.games.push({ mode:selectedMode, p1, p2, winner });
+
+    // Save to Firebase
+    const btn = $('saveBtn');
+    btn.disabled = true;
+    setSync('syncing');
+
+    const now = Date.now();
+    window._fbSet('tracker', { sessions, playerNames, playerInitials, updatedAt:now })
+      .then(()=>{
+        setSync('connected');
+        const placeLabel = selectedPlace===1?'#1 🏆':selectedPlace<=5?`Top ${selectedPlace}`:selectedPlace<=10?'Top 10':selectedPlace<=20?'Top 20':'#20+';
+        showToast(`✓ Saved · ${placeLabel}`);
+        $('p1kills').value=''; $('p1deaths').value='';
+        $('p2kills').value=''; $('p2deaths').value='';
+        document.querySelectorAll('.pos-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.pos-btn')[1].classList.add('active');
+        selectedPlace = 2;
+        updateUI();
+      })
+      .catch(e=>{
+        setSync('error');
+        showToast('Save failed — check connection', true);
+        console.error(e);
+      })
+      .finally(()=>{ btn.disabled=false; });
+  }
+
+  // Init — wait for Firebase then listen
+  function init(){
+    setSync('syncing');
+    window._fbListen('tracker', data=>{
+      if(data){
+        sessions      = data.sessions      || [];
+        playerNames   = data.playerNames   || playerNames;
+        playerInitials= data.playerInitials|| playerInitials;
+        // Set currentKey to most recent session
+        if(!currentKey && sessions.length > 0){
+          const sorted = [...sessions].sort((a,b)=>b.dateKey.localeCompare(a.dateKey));
+          currentKey = sorted[0].dateKey;
+        }
+        setSync('connected');
+      } else {
+        setSync('connected');
+      }
+      updateUI();
+    });
+  }
+
+  if(window._fbReady) init();
+  else document.addEventListener('firebase-ready', init, {once:true});
+</script>
+</body>
+</html>
