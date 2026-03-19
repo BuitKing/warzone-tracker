@@ -1281,6 +1281,47 @@ select option { background:#0a0c10; }
 </head>
 <body>
 
+<!-- PASSWORD OVERLAY -->
+<div id="pwOverlay" style="display:none;position:fixed;inset:0;background:#030406;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="font-family:'Cinzel',serif;font-size:26px;font-weight:700;letter-spacing:5px;text-transform:uppercase;background:linear-gradient(135deg,#b85500 0%,#ffb060 40%,#f5890f 60%,#d96a00 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Warzone Tracker</div>
+  </div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:3px;color:#3e5060;text-transform:uppercase">Enter password to continue</div>
+  <div style="display:flex;flex-direction:column;gap:8px;width:260px">
+    <input id="pwInput" type="password" placeholder="••••"
+      style="background:#090b0f;border:1px solid rgba(217,106,0,.35);border-left:3px solid var(--gold2);color:#f5890f;font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;padding:14px 18px;outline:none;letter-spacing:8px;text-align:center;width:100%"
+      onkeydown="if(event.key==='Enter')checkPw()">
+    <div id="pwError" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#e03050;letter-spacing:2px;text-align:center;height:14px"></div>
+    <button onclick="checkPw()"
+      style="background:linear-gradient(135deg,#b85500,#d96a00,#f5890f);border:none;color:#1a0800;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:4px;padding:15px;cursor:pointer;text-transform:uppercase;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))">
+      ✓ &nbsp;Unlock
+    </button>
+  </div>
+</div>
+
+<script>
+(function(){
+  function checkPw(){
+    const val = document.getElementById('pwInput').value;
+    if(val === '1954'){
+      localStorage.setItem('wz_auth','granted');
+      document.getElementById('pwOverlay').style.display='none';
+    } else {
+      const err = document.getElementById('pwError');
+      err.textContent = 'Incorrect password';
+      document.getElementById('pwInput').value='';
+      setTimeout(()=>err.textContent='',2000);
+    }
+  }
+  window.checkPw = checkPw;
+  if(localStorage.getItem('wz_auth') !== 'granted'){
+    document.getElementById('pwOverlay').style.display='flex';
+  } else {
+    document.getElementById('pwOverlay').style.display='none';
+  }
+})();
+</script>
+
 <!-- ═══════════════════════════════════════════════
      HEADER
 ═══════════════════════════════════════════════ -->
