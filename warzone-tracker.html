@@ -1637,6 +1637,7 @@ select option { background:#0a0c10; }
           <tr>
             <th style="width:34px;background:var(--surface2)"></th>
             <th style="width:108px;background:var(--surface2)">Date</th>
+            <th style="width:64px;background:var(--surface2)">Time</th>
             <th style="width:88px;background:var(--surface2)">Games</th>
             <th style="width:90px;background:var(--surface2)">Wins</th>
             <th class="group-p1" style="width:76px" id="th1">— Kills</th>
@@ -1644,6 +1645,7 @@ select option { background:#0a0c10; }
             <th class="group-p2" style="width:76px" id="th2">— Kills</th>
             <th class="col-p2-last" style="width:72px">K/D</th>
             <th style="width:120px;background:var(--surface2)">Winner</th>
+            <th style="width:90px;background:var(--surface2)">Score</th>
             <th style="width:46px;background:var(--surface2)"></th>
           </tr>
         </thead>
@@ -1923,6 +1925,7 @@ function save() {
       sessions,
       playerNames,
       playerInitials,
+      currentSessionKey: currentSessionKey || todayKey(),
       updatedAt: now
     }).catch(e => console.warn('Firebase sync mislukt:', e));
   }
@@ -2013,11 +2016,10 @@ function saveGame() {
 
   const key = currentSessionKey || todayKey();
   let sess=sessions.find(s=>s.dateKey===key);
-  if(!sess){ sess={dateKey:key,date:keyToDate(key),games:[]}; sessions.push(sess); }
+  if(!sess){ sess={dateKey:key,date:keyToDate(key),createdAt:Date.now(),games:[]}; sessions.push(sess); }
   currentSessionKey = key;
-  // PR check vóór push zodat vorige max intact is
   checkAndFlashPR(p1, p2);
-  sess.games.push({mode,p1,p2,winner});
+  sess.games.push({mode,p1,p2,winner,savedAt:Date.now()});
   expandedSessions.add(key);
 
   save(); render();
@@ -2305,6 +2307,7 @@ function setBg(theme){
 
 function kdVal(k,d){ return d===0?k:k/d; }
 function kdStr(k,d){ return kdVal(k,d).toFixed(2); }
+function tsToTime(ts){ if(!ts) return '—'; const d=new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 
 function placeBadge(place){
   if(place===1)  return `<span class="place-badge place-1">#1</span>`;
@@ -2442,11 +2445,15 @@ function renderLeaderboard(){
     if(!el1||!el2) return;
     const result = fmt(1.1);
     const dec = typeof result === 'string' && result.includes('.') ? result.split('.')[1].length : 0;
-    animateVal(el1, v1, dec); animateVal(el2, v2, dec);
     const better=lowerBetter?v1<v2:v1>v2;
     const worse =lowerBetter?v1>v2:v1<v2;
-    el1.className='compare-val '+(better?'better':worse?'worse':'equal');
-    el2.className='compare-val '+(worse?'better':better?'worse':'equal');
+    const cls1 = 'compare-val '+(better?'better':worse?'worse':'equal');
+    const cls2 = 'compare-val '+(worse?'better':better?'worse':'equal');
+    animateVal(el1, v1, dec); animateVal(el2, v2, dec);
+    // Set after animateVal so stat-val-changed doesn't interfere
+    el1.className=cls1; el2.className=cls2;
+    // Re-apply after flash animation completes
+    setTimeout(()=>{ el1.className=cls1; el2.className=cls2; }, 500);
   };
 
   const calcAt=pk=>{
@@ -2531,6 +2538,10 @@ function renderLeaderboard(){
   };
 
   const hbSvg = `<svg viewBox="0 0 560 36" preserveAspectRatio="none"><polyline points="0,18 20,18 28,5 35,31 42,5 50,18 90,18 98,5 105,31 112,5 120,18 160,18 168,5 175,31 182,5 190,18 230,18 238,5 245,31 252,5 260,18 300,18 308,5 315,31 322,5 330,18 370,18 378,5 385,31 392,5 400,18 440,18 448,5 455,31 462,5 470,18 510,18 518,5 525,31 532,5 540,18 560,18" fill="none" stroke="rgba(220,0,40,.65)" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+
+  // Reset streak state so bars always rebuild correctly
+  streakState[1] = null;
+  streakState[2] = null;
 
   [0,1].forEach(pi=>{
     const sfx=pi+1;
@@ -2663,9 +2674,13 @@ function renderSessionTable(){
       const row = document.createElement('tr');
       row.className = `session-row${isExp?' expanded':''}${isBest?' best-session':''}`;
       row.onclick = ()=>toggleExpand(dk);
+      const isActive = sess.dateKey === (currentSessionKey || todayKey());
+      const scoreHtml = isExp ? '' : `<span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:1px;white-space:nowrap"><span style="color:var(--gold2)">${w1}</span><span style="color:var(--pewter);margin:0 4px">–</span><span style="color:var(--ice)">${w2}</span></span>`;
+
       row.innerHTML = `
-        <td><span class="expand-icon">▶</span>${isBest?'<span class="best-badge">★</span>':''}</td>
+        <td><span class="expand-icon">▶</span>${isBest?'<span class="best-badge">★</span>':''}${isActive?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2ee87a;box-shadow:0 0 6px #2ee87a;margin-left:6px;vertical-align:middle"></span>':''}</td>
         <td style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:1px;color:var(--platinum)">${sess.date}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--silver)">${tsToTime(sess.createdAt)}</td>
         <td>${isExp?'':` <span class="games-badge">${filteredGames.length} game${filteredGames.length!==1?'s':''}</span>`}</td>
         <td>${isExp?'':(place1count>0?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold3)">${place1count}</span>`:'<span style="color:var(--smoke)">—</span>')}</td>
         <td class="col-p1" style="color:${isExp?'transparent':killColor1(avgP1k)};font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900">${isExp?'':p1k}</td>
@@ -2673,6 +2688,7 @@ function renderSessionTable(){
         <td class="col-p2" style="color:${isExp?'transparent':killColor2(avgP2k)};font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900">${isExp?'':p2k}</td>
         <td class="col-p2-last" style="color:${isExp?'transparent':'var(--ice)'};font-family:'JetBrains Mono',monospace;font-size:12px">${isExp?'':kdStr(p2k,p2d)}</td>
         <td>${isExp?'':winnerHtml(sessWinner)}</td>
+        <td>${isExp?'':scoreHtml}</td>
         <td></td>`;
       tbody.appendChild(row);
       rowsAdded++;
@@ -2690,6 +2706,7 @@ function renderSessionTable(){
           subRow.className = 'game-sub-row';
           subRow.innerHTML = `
             <td style="padding-left:28px;color:var(--pewter);font-size:11px;font-family:'JetBrains Mono',monospace">└ #${gi+1}</td>
+            <td style="color:var(--silver);font-size:11px;font-family:'JetBrains Mono',monospace">${tsToTime(g.savedAt)}</td>
             <td style="color:var(--pewter);font-size:11px;font-family:'JetBrains Mono',monospace">${g.mode}</td>
             <td></td>
             <td>${placeBadge(g.p1.place)}</td>
@@ -2698,6 +2715,7 @@ function renderSessionTable(){
             <td class="col-p2" style="color:${killColor2(g.p2.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p2.kills}${isPrK2?prBadge2:''}</td>
             <td class="col-p2-last" style="color:var(--ice);font-family:'JetBrains Mono',monospace;font-size:11px">${kdStr(g.p2.kills,g.p2.deaths)}${isPrKd2?prBadge2:''}</td>
             <td>${winnerHtml(g.winner)}</td>
+            <td></td>
             <td style="display:flex;gap:4px;align-items:center">
               <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px" onclick="event.stopPropagation();openEdit('${dk}',${gi})">✎</button>
               <button class="btn btn-danger" onclick="event.stopPropagation();deleteGame('${dk}',${gi})">✕</button>

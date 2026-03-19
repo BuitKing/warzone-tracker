@@ -204,7 +204,7 @@
   <div style="display:flex;align-items:center;flex:1">
     <div class="header-logo">Warzone Tracker</div>
     <div class="header-sep"></div>
-    <div class="header-sub" id="sessionLabel">Mobile</div>
+    <div class="header-sub">by BuitKing</div>
   </div>
   <div style="display:flex;align-items:center;gap:6px">
     <span style="font-size:9px;color:var(--pewter);font-family:'JetBrains Mono',monospace;letter-spacing:1px" id="syncLabel">connecting</span>
@@ -250,7 +250,7 @@
   <div class="player-block p1 p1-block">
     <div class="player-block-header">
       <div class="player-block-name" id="p1name">Player 1</div>
-      <div class="player-tag">P1</div>
+      <div class="player-tag" id="tag1">P1</div>
     </div>
     <div class="player-inputs">
       <div class="input-cell">
@@ -268,7 +268,7 @@
   <div class="player-block p2 p2-block">
     <div class="player-block-header">
       <div class="player-block-name" id="p2name">Player 2</div>
-      <div class="player-tag">P2</div>
+      <div class="player-tag" id="tag2">P2</div>
     </div>
     <div class="player-inputs">
       <div class="input-cell">
@@ -377,13 +377,24 @@
     const kdn1 = $('kd-name1'); if(kdn1) kdn1.textContent = playerNames[0] || 'P1';
     const kdn2 = $('kd-name2'); if(kdn2) kdn2.textContent = playerNames[1] || 'P2';
 
+    // Initialen in P1/P2 tags
+    const getInit = (pi) => {
+      if(playerInitials[pi] && playerInitials[pi].trim()) return playerInitials[pi].trim();
+      const name = playerNames[pi] || '';
+      const parts = name.trim().split(/\s+/);
+      if(parts.length >= 2) return (parts[0][0]+parts[1][0]).toUpperCase();
+      return name.slice(0,2).toUpperCase() || (pi===0?'P1':'P2');
+    };
+    const t1=$('tag1'); if(t1) t1.textContent=getInit(0);
+    const t2=$('tag2'); if(t2) t2.textContent=getInit(1);
+
     const key = currentKey || todayKey();
     const sess = sessions.find(s=>s.dateKey===key);
     const parts = key.split('_');
     const sessNum = parts[1] ? ` · Session ${parseInt(parts[1])+1}` : '';
     $('sessionDate').innerHTML = `<strong>${keyToDate(key)}</strong>${sessNum}`;
     $('gameCount').textContent = sess ? `${sess.games.length} game${sess.games.length!==1?'s':''} this session` : '0 games this session';
-    $('sessionLabel').textContent = keyToDate(key) + sessNum;
+    // sessionLabel removed
 
     // Session K/D
     const games = sess ? sess.games : [];
@@ -462,11 +473,11 @@
     const key = currentKey || todayKey();
     let sess = sessions.find(s=>s.dateKey===key);
     if(!sess){
-      sess = { dateKey:key, date:keyToDate(key), games:[] };
+      sess = { dateKey:key, date:keyToDate(key), createdAt:Date.now(), games:[] };
       sessions.push(sess);
     }
     currentKey = key;
-    sess.games.push({ mode:selectedMode, p1, p2, winner });
+    sess.games.push({ mode:selectedMode, p1, p2, winner, savedAt:Date.now() });
 
     // Save to Firebase
     const btn = $('saveBtn');
@@ -474,7 +485,7 @@
     setSync('syncing');
 
     const now = Date.now();
-    window._fbSet('tracker', { sessions, playerNames, playerInitials, updatedAt:now })
+    window._fbSet('tracker', { sessions, playerNames, playerInitials, currentSessionKey: currentKey, updatedAt:now })
       .then(()=>{
         setSync('connected');
         const placeLabel = selectedPlace===1?'#1 🏆':selectedPlace<=5?`Top ${selectedPlace}`:selectedPlace<=10?'Top 10':selectedPlace<=20?'Top 20':'#20+';
@@ -502,8 +513,10 @@
         sessions      = data.sessions      || [];
         playerNames   = (data.playerNames && data.playerNames[0] !== 'Player 1') ? data.playerNames : playerNames;
         playerInitials= data.playerInitials|| playerInitials;
-        // Set currentKey to most recent session
-        if(!currentKey && sessions.length > 0){
+        // Gebruik de actieve sessie van de PC tracker
+        if(data.currentSessionKey){
+          currentKey = data.currentSessionKey;
+        } else if(!currentKey && sessions.length > 0){
           const sorted = [...sessions].sort((a,b)=>b.dateKey.localeCompare(a.dateKey));
           currentKey = sorted[0].dateKey;
         }
