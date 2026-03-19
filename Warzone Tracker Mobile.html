@@ -20,13 +20,14 @@
   body{ display:flex; flex-direction:column; min-height:100vh; padding:0; overflow-x:hidden; }
 
   .header{
-    background:var(--surface2); border-bottom:1px solid var(--rim);
-    padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
-    position:sticky; top:0; z-index:10;
+    background:var(--surface2); border-bottom:1px solid rgba(217,106,0,.2);
+    padding:0 20px; display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:10; height:60px;
   }
-  .header-title{ font-size:13px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--gold3); }
-  .header-sub{ font-size:10px; color:var(--silver); letter-spacing:1px; margin-top:2px; }
-  .sync-dot{ width:8px; height:8px; border-radius:50%; background:var(--pewter); transition:background .3s; }
+  .header-logo{ font-family:'Cinzel',serif; font-size:16px; font-weight:700; letter-spacing:3px; text-transform:uppercase; background:linear-gradient(135deg,#b85500 0%,#ffb060 40%,#f5890f 60%,#d96a00 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .header-sep{ width:1px; height:16px; background:rgba(217,106,0,.35); margin:0 10px; flex-shrink:0; }
+  .header-sub{ font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:3px; color:#3e5060; text-transform:uppercase; }
+  .sync-dot{ width:8px; height:8px; border-radius:50%; background:var(--pewter); transition:background .3s; flex-shrink:0; }
   .sync-dot.connected{ background:var(--emerald); box-shadow:0 0 6px var(--emerald); }
   .sync-dot.syncing{ background:var(--gold2); animation:pulse .8s ease-in-out infinite; }
   .sync-dot.error{ background:var(--ruby); }
@@ -200,12 +201,13 @@
   }
 })();
 </script>
-  <div>
-    <div class="header-title">⚡ Warzone</div>
-    <div class="header-sub" id="sessionLabel">Loading...</div>
+  <div style="display:flex;align-items:center;flex:1">
+    <div class="header-logo">Warzone Tracker</div>
+    <div class="header-sep"></div>
+    <div class="header-sub" id="sessionLabel">Mobile</div>
   </div>
-  <div style="display:flex;align-items:center;gap:8px">
-    <span style="font-size:9px;color:var(--pewter);font-family:monospace;letter-spacing:1px" id="syncLabel">connecting</span>
+  <div style="display:flex;align-items:center;gap:6px">
+    <span style="font-size:9px;color:var(--pewter);font-family:'JetBrains Mono',monospace;letter-spacing:1px" id="syncLabel">connecting</span>
     <div class="sync-dot" id="syncDot"></div>
   </div>
 </div>
