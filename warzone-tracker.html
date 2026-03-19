@@ -532,14 +532,11 @@ header::after {
 .h2h-stat { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:900; letter-spacing:2px; }
 .h2h-vs { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--pewter); letter-spacing:3px; }
 
-.best-session td { background:rgba(255,140,26,.06) !important; }
-.best-session:hover td { background:rgba(255,140,26,.1) !important; }
-.best-badge {
-  display:inline-block; color:var(--gold3); font-size:11px;
-  margin-left:4px; vertical-align:middle;
-  filter:drop-shadow(0 0 4px rgba(255,140,26,.6));
-  animation:shimmer 2s ease-in-out infinite;
-}
+.best-session td { background:transparent !important; }
+.best-badge { display:none; }
+.active-session td:first-child { border-left:2px solid rgba(46,232,122,.4); }
+.active-session td { background:rgba(46,232,122,.03) !important; }
+.active-session:hover td { background:rgba(46,232,122,.06) !important; }
 
 /* ── TOOLTIPS ── */
 [data-tip] { position:relative; z-index:10; }
@@ -2672,13 +2669,13 @@ function renderSessionTable(){
       const isBest=dk===bestKey && allFiltered.length>1;
 
       const row = document.createElement('tr');
-      row.className = `session-row${isExp?' expanded':''}${isBest?' best-session':''}`;
-      row.onclick = ()=>toggleExpand(dk);
       const isActive = sess.dateKey === (currentSessionKey || todayKey());
+      row.className = `session-row${isExp?' expanded':''}${isActive?' active-session':''}`;
+      row.onclick = ()=>toggleExpand(dk);
       const scoreHtml = isExp ? '' : `<span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:1px;white-space:nowrap"><span style="color:var(--gold2)">${w1}</span><span style="color:var(--pewter);margin:0 4px">–</span><span style="color:var(--ice)">${w2}</span></span>`;
 
       row.innerHTML = `
-        <td><span class="expand-icon">▶</span>${isBest?'<span class="best-badge">★</span>':''}${isActive?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2ee87a;box-shadow:0 0 6px #2ee87a;margin-left:6px;vertical-align:middle"></span>':''}</td>
+        <td><span class="expand-icon">▶</span>${isActive?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2ee87a;box-shadow:0 0 6px #2ee87a;margin-left:6px;vertical-align:middle"></span>':''}</td>
         <td style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:1px;color:var(--platinum)">${sess.date}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--silver)">${tsToTime(sess.createdAt)}</td>
         <td>${isExp?'':` <span class="games-badge">${filteredGames.length} game${filteredGames.length!==1?'s':''}</span>`}</td>
