@@ -1819,13 +1819,18 @@ function init() {
     if(!window._fbReady || !window._fbListen) return;
     let isFirstSync = true;
     window._fbListen('tracker', data => {
+      if(!data && sessions.length > 0){
+        // Firebase is leeg maar we hebben lokale data — push het omhoog
+        const now = Date.now();
+        localStorage.setItem('wz_last_save', String(now));
+        window._fbSet('tracker', { sessions, playerNames, playerInitials, updatedAt: now });
+        return;
+      }
       if(!data) return;
-      // Negeer eerste sync als we al lokale data hebben (voorkom overschrijven)
       if(isFirstSync){
         isFirstSync = false;
-        if(sessions.length > 0) return; // lokale data heeft voorrang bij laden
+        if(sessions.length > 0) return;
       }
-      // Update alleen als Firebase data nieuwer is dan onze lokale staat
       const fbUpdated = data.updatedAt || 0;
       const localUpdated = parseInt(localStorage.getItem('wz_last_save') || '0');
       if(fbUpdated > localUpdated){

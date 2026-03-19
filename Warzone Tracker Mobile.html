@@ -157,7 +157,7 @@
         <div id="sessionDate">—</div>
         <div style="margin-top:2px;font-size:10px" id="gameCount">0 games this session</div>
       </div>
-      <button class="new-session-btn" onclick="newSession()">+ New</button>
+      <button class="new-session-btn" onclick="newSession()">+ New session</button>
     </div>
   </div>
 
@@ -386,7 +386,7 @@
     window._fbListen('tracker', data=>{
       if(data){
         sessions      = data.sessions      || [];
-        playerNames   = data.playerNames   || playerNames;
+        playerNames   = (data.playerNames && data.playerNames[0] !== 'Player 1') ? data.playerNames : playerNames;
         playerInitials= data.playerInitials|| playerInitials;
         // Set currentKey to most recent session
         if(!currentKey && sessions.length > 0){
