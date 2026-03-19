@@ -164,15 +164,11 @@
   <!-- Position -->
   <div>
     <div class="section-label">Final position</div>
-    <div class="pos-grid">
-      <button class="pos-btn" onclick="setPlace(1)">🏆 #1</button>
-      <button class="pos-btn active" onclick="setPlace(2)">#2</button>
-      <button class="pos-btn" onclick="setPlace(3)">#3</button>
-      <button class="pos-btn" onclick="setPlace(4)">#4</button>
-      <button class="pos-btn" onclick="setPlace(5)">#5</button>
-      <button class="pos-btn" onclick="setPlace(10)">Top 10</button>
-      <button class="pos-btn" onclick="setPlace(20)">Top 20</button>
-      <button class="pos-btn" onclick="setPlace(21)">#20+</button>
+    <div style="background:var(--surface);border:1px solid var(--rim);border-left:3px solid var(--gold2);padding:12px 16px;">
+      <input type="number" id="placeInput" min="1" max="150"
+        inputmode="numeric"
+        style="background:transparent;border:none;outline:none;font-size:36px;font-weight:900;color:var(--gold3);width:100%;font-family:'Barlow Condensed',system-ui,sans-serif;-webkit-appearance:none;"
+        oninput="onPlaceInput(this.value)">
     </div>
   </div>
 
@@ -222,6 +218,23 @@
   </div>
 
   <button class="save-btn" id="saveBtn" onclick="saveGame()">✓  Save game</button>
+
+  <!-- Session K/D -->
+  <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:14px;margin-top:4px;">
+    <div class="section-label" style="margin-bottom:10px">Session K/D</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="background:var(--surface);border:1px solid var(--rim);border-top:2px solid rgba(217,106,0,.5);padding:12px 14px;">
+        <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold2);font-family:monospace;margin-bottom:6px" id="kd-name1">P1</div>
+        <div style="font-size:28px;font-weight:900;color:var(--gold3);font-family:'Barlow Condensed',system-ui,sans-serif;line-height:1" id="kd-val1">—</div>
+        <div style="font-size:9px;color:var(--pewter);font-family:monospace;margin-top:4px" id="kd-sub1">0 kills · 0 deaths</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--rim);border-top:2px solid rgba(0,174,221,.4);padding:12px 14px;">
+        <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--ice);font-family:monospace;margin-bottom:6px" id="kd-name2">P2</div>
+        <div style="font-size:28px;font-weight:900;color:var(--ice2);font-family:'Barlow Condensed',system-ui,sans-serif;line-height:1" id="kd-val2">—</div>
+        <div style="font-size:9px;color:var(--pewter);font-family:monospace;margin-top:4px" id="kd-sub2">0 kills · 0 deaths</div>
+      </div>
+    </div>
+  </div>
 
 </div>
 
@@ -294,11 +307,11 @@
   }
 
   function updateUI(){
-    // Player names
     $('p1name').textContent = playerNames[0] || 'Player 1';
     $('p2name').textContent = playerNames[1] || 'Player 2';
+    const kdn1 = $('kd-name1'); if(kdn1) kdn1.textContent = playerNames[0] || 'P1';
+    const kdn2 = $('kd-name2'); if(kdn2) kdn2.textContent = playerNames[1] || 'P2';
 
-    // Session info
     const key = currentKey || todayKey();
     const sess = sessions.find(s=>s.dateKey===key);
     const parts = key.split('_');
@@ -306,13 +319,49 @@
     $('sessionDate').innerHTML = `<strong>${keyToDate(key)}</strong>${sessNum}`;
     $('gameCount').textContent = sess ? `${sess.games.length} game${sess.games.length!==1?'s':''} this session` : '0 games this session';
     $('sessionLabel').textContent = keyToDate(key) + sessNum;
+
+    // Session K/D
+    const games = sess ? sess.games : [];
+    ['p1','p2'].forEach((pk,pi)=>{
+      const k = games.reduce((s,g)=>s+g[pk].kills,0);
+      const d = games.reduce((s,g)=>s+g[pk].deaths,0);
+      const kd = games.length ? (d===0?k:k/d).toFixed(2) : '—';
+      const valEl = $(pi===0?'kd-val1':'kd-val2');
+      const subEl = $(pi===0?'kd-sub1':'kd-sub2');
+      if(valEl) valEl.textContent = kd;
+      if(subEl) subEl.textContent = games.length ? `${k} kills · ${d} deaths` : '0 kills · 0 deaths';
+    });
   }
 
-  function setPlace(p){
-    selectedPlace = p;
-    document.querySelectorAll('.pos-btn').forEach(b=>b.classList.remove('active'));
-    event.target.classList.add('active');
+  function onPlaceInput(val){
+    const n = parseInt(val);
+    if(!val || isNaN(n) || n < 1){ 
+      selectedPlace = 2;
+      document.getElementById('placeCategory').style.color = 'var(--pewter)';
+      document.getElementById('placeCategory').textContent = '— selecteer';
+      return;
+    }
+    selectedPlace = n;
+    const cat = document.getElementById('placeCategory');
+    if(n === 1){
+      cat.textContent = '🏆 #1 — winnaar!';
+      cat.style.color = 'var(--gold3)';
+    } else if(n <= 5){
+      cat.textContent = `Top 5  (positie ${n})`;
+      cat.style.color = 'var(--emerald)';
+    } else if(n <= 10){
+      cat.textContent = `Top 10  (positie ${n})`;
+      cat.style.color = 'var(--ice)';
+    } else if(n <= 20){
+      cat.textContent = `Top 20  (positie ${n})`;
+      cat.style.color = 'var(--silver)';
+    } else {
+      cat.textContent = `#20+  (positie ${n})`;
+      cat.style.color = 'var(--pewter)';
+    }
   }
+
+  function setPlace(p){ selectedPlace = p; }
 
   function setMode(m){
     selectedMode = m;
@@ -367,8 +416,8 @@
         showToast(`✓ Saved · ${placeLabel}`);
         $('p1kills').value=''; $('p1deaths').value='';
         $('p2kills').value=''; $('p2deaths').value='';
-        document.querySelectorAll('.pos-btn').forEach(b=>b.classList.remove('active'));
-        document.querySelectorAll('.pos-btn')[1].classList.add('active');
+        const pi = $('placeInput'); if(pi){ pi.value=''; }
+        const pc = $('placeCategory'); if(pc){ pc.textContent='— selecteer'; pc.style.color='var(--pewter)'; }
         selectedPlace = 2;
         updateUI();
       })
