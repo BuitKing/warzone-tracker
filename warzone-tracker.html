@@ -1880,13 +1880,13 @@ function init() {
   initCombo();
   render();
 
-  // Firebase live listener
+  // Firebase live listener — Firebase is ALTIJD autoriteit op currentSessionKey
   const startFirebaseListener = () => {
     if(!window._fbReady || !window._fbListen) return;
+    let initialized = false;
 
     window._fbListen('tracker', data => {
       if(!data){
-        // Firebase empty — push local data up
         if(sessions.length > 0){
           const now = Date.now();
           localStorage.setItem('wz_last_save', String(now));
@@ -1896,29 +1896,38 @@ function init() {
             updatedAt: now
           });
         }
+        initialized = true;
         return;
       }
 
       const fbUpdated = data.updatedAt || 0;
       const localUpdated = parseInt(localStorage.getItem('wz_last_save') || '0');
 
-      if(fbUpdated > localUpdated){
-        // Firebase is newer — take everything from Firebase
-        sessions = data.sessions || [];
-        playerNames = data.playerNames || playerNames;
-        playerInitials = data.playerInitials || playerInitials;
+      // Eerste keer: als lokaal nieuwer is, push naar Firebase en klaar
+      if(!initialized && localUpdated > fbUpdated && sessions.length > 0){
+        initialized = true;
+        window._fbSet('tracker', {
+          sessions, playerNames, playerInitials,
+          currentSessionKey: currentSessionKey || todayKey(),
+          updatedAt: localUpdated
+        });
+        return;
+      }
+      initialized = true;
 
-        // Always sync currentSessionKey from Firebase
+      if(fbUpdated >= localUpdated){
+        // Firebase heeft nieuwe of gelijke data — altijd overnemen
+        const prevKey = currentSessionKey;
+        sessions      = data.sessions || [];
+        playerNames   = data.playerNames || playerNames;
+        playerInitials= (data.playerInitials && (data.playerInitials[0]||data.playerInitials[1]))
+                        ? data.playerInitials : playerInitials;
+
+        // currentSessionKey ALTIJD van Firebase — dit is de enige bron van waarheid
         if(data.currentSessionKey){
-          // Only update if the key actually exists in sessions, or it's for today
-          const keyExists = sessions.find(s=>s.dateKey===data.currentSessionKey);
-          const isToday = data.currentSessionKey.startsWith(todayKey());
-          if(keyExists || isToday){
-            currentSessionKey = data.currentSessionKey;
-          }
+          currentSessionKey = data.currentSessionKey;
         }
 
-        // Persist to localStorage
         localStorage.setItem('wz_sessions_v2', JSON.stringify(sessions));
         localStorage.setItem('wz_players', JSON.stringify(playerNames));
         localStorage.setItem('wz_initials', JSON.stringify(playerInitials));
@@ -1927,14 +1936,7 @@ function init() {
         updateInitials();
         updatePanelDate();
         render();
-        showToast('↓ Synced');
-      } else if(localUpdated > 0 && fbUpdated < localUpdated){
-        // Local is newer — push to Firebase to keep it current
-        window._fbSet('tracker', {
-          sessions, playerNames, playerInitials,
-          currentSessionKey: currentSessionKey || todayKey(),
-          updatedAt: localUpdated
-        });
+        if(fbUpdated > localUpdated) showToast('↓ Synced');
       }
     });
   };

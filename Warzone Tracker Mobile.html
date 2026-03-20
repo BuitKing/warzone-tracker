@@ -522,17 +522,13 @@
         sessions = data.sessions || [];
         if(data.playerNames && data.playerNames[0] !== 'Player 1')
           playerNames = data.playerNames;
-        if(data.playerInitials) playerInitials = data.playerInitials;
+        playerInitials = (data.playerInitials && (data.playerInitials[0]||data.playerInitials[1]))
+          ? data.playerInitials : playerInitials;
 
-        // Actieve sessie altijd van Firebase overnemen
+        // currentSessionKey ALTIJD van Firebase — nooit lokaal berekenen
         if(data.currentSessionKey){
-          const exists = sessions.find(s=>s.dateKey===data.currentSessionKey);
-          const isToday = data.currentSessionKey.startsWith(todayKey());
-          if(exists || isToday){
-            currentKey = data.currentSessionKey;
-          }
+          currentKey = data.currentSessionKey;
         } else if(!currentKey && sessions.length > 0){
-          // Fallback: meest recente sessie
           const sorted = [...sessions].sort((a,b)=>b.dateKey.localeCompare(a.dateKey));
           currentKey = sorted[0].dateKey;
         }
