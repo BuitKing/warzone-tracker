@@ -186,7 +186,7 @@
 </div>
 <script>
 (function(){
-  const VERSION = '20260320-006';
+  const VERSION = '20260320-007';
   function doUpdate(){
     localStorage.setItem('wz_version', VERSION);
     location.reload(true);
@@ -518,8 +518,33 @@
   }
 
   function saveGame(){
-    const p1 = { kills: parseInt($('p1kills').value)||0, deaths: parseInt($('p1deaths').value)||0, place: selectedPlace };
-    const p2 = { kills: parseInt($('p2kills').value)||0, deaths: parseInt($('p2deaths').value)||0, place: selectedPlace };
+    const placeRaw    = $('placeInput') ? $('placeInput').value : '';
+    const p1killsRaw  = $('p1kills').value;
+    const p1deathsRaw = $('p1deaths').value;
+    const p2killsRaw  = $('p2kills').value;
+    const p2deathsRaw = $('p2deaths').value;
+
+    const missing = [];
+    if(!placeRaw || isNaN(parseInt(placeRaw))) missing.push('Positie');
+    if(p1killsRaw  === '') missing.push(`${playerNames[0]} kills`);
+    if(p1deathsRaw === '') missing.push(`${playerNames[0]} deaths`);
+    if(p2killsRaw  === '') missing.push(`${playerNames[1]} kills`);
+    if(p2deathsRaw === '') missing.push(`${playerNames[1]} deaths`);
+
+    if(missing.length){
+      showToast(`⚠ Vul in: ${missing.join(' · ')}`, true);
+      [['placeInput',placeRaw],['p1kills',p1killsRaw],['p1deaths',p1deathsRaw],['p2kills',p2killsRaw],['p2deaths',p2deathsRaw]].forEach(([id,val])=>{
+        const el = $(id);
+        if(el && val===''){
+          el.style.borderBottom='2px solid var(--ruby)';
+          el.addEventListener('input',()=>{ el.style.borderBottom=''; },{once:true});
+        }
+      });
+      return;
+    }
+
+    const p1 = { kills: parseInt(p1killsRaw)||0, deaths: parseInt(p1deathsRaw)||0, place: selectedPlace };
+    const p2 = { kills: parseInt(p2killsRaw)||0, deaths: parseInt(p2deathsRaw)||0, place: selectedPlace };
 
     // Winner logic
     let winner;

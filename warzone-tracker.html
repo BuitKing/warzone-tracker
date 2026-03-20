@@ -2086,7 +2086,34 @@ function updatePanelDate() {
   if (n2) n2.textContent = playerNames[1];
 }
 function saveGame() {
-  const place = parseInt(document.getElementById('sharedPlace').value);
+  const placeRaw = document.getElementById('sharedPlace').value;
+  const p1killsRaw  = document.getElementById('p1kills').value;
+  const p2killsRaw  = document.getElementById('p2kills').value;
+  const p1deathsRaw = document.getElementById('p1deaths').value;
+  const p2deathsRaw = document.getElementById('p2deaths').value;
+
+  const missing = [];
+  if(!placeRaw || isNaN(parseInt(placeRaw))) missing.push('Positie');
+  if(p1killsRaw  === '') missing.push(`${playerNames[0]} kills`);
+  if(p1deathsRaw === '') missing.push(`${playerNames[0]} deaths`);
+  if(p2killsRaw  === '') missing.push(`${playerNames[1]} kills`);
+  if(p2deathsRaw === '') missing.push(`${playerNames[1]} deaths`);
+
+  if(missing.length){
+    showToast(`⚠ Vul in: ${missing.join(' · ')}`);
+    // Highlight lege velden
+    [['sharedPlace', placeRaw],['p1kills',p1killsRaw],['p1deaths',p1deathsRaw],['p2kills',p2killsRaw],['p2deaths',p2deathsRaw]].forEach(([id,val])=>{
+      const el = document.getElementById(id);
+      if(el && val===''){
+        el.style.borderColor='var(--ruby)';
+        el.style.boxShadow='0 0 0 2px rgba(224,48,80,.2)';
+        el.addEventListener('input', ()=>{ el.style.borderColor=''; el.style.boxShadow=''; }, {once:true});
+      }
+    });
+    return;
+  }
+
+  const place = parseInt(placeRaw);
   const p1 = {
     kills:  parseInt(document.getElementById('p1kills').value)||0,
     deaths: parseInt(document.getElementById('p1deaths').value)||0,
