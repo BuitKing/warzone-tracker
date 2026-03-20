@@ -1645,8 +1645,10 @@ select option { background:#0a0c10; }
             <th style="width:88px;background:var(--surface2)">Games</th>
             <th style="width:90px;background:var(--surface2)">Wins</th>
             <th class="group-p1" style="width:76px" id="th1">— Kills</th>
+            <th class="col-p1" style="width:60px;color:var(--gold2)">Deaths</th>
             <th class="col-p1-last" style="width:72px">K/D</th>
             <th class="group-p2" style="width:76px" id="th2">— Kills</th>
+            <th class="col-p2" style="width:60px;color:var(--ice)">Deaths</th>
             <th class="col-p2-last" style="width:72px">K/D</th>
             <th style="width:120px;background:var(--surface2)">Winner</th>
             <th style="width:90px;background:var(--surface2)">Score</th>
@@ -2781,8 +2783,10 @@ function renderSessionTable(){
         <td>${isExp?'':` <span class="games-badge">${filteredGames.length} game${filteredGames.length!==1?'s':''}</span>`}</td>
         <td>${isExp?'':(place1count>0?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold3)">${place1count}</span>`:'<span style="color:var(--smoke)">—</span>')}</td>
         <td class="col-p1" style="color:${isExp?'transparent':killColor1(avgP1k)};font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900">${isExp?'':p1k}</td>
+        <td class="col-p1" style="color:${isExp?'transparent':'var(--gold2)'};font-family:'JetBrains Mono',monospace;font-size:14px">${isExp?'':p1d}</td>
         <td class="col-p1-last" style="color:${isExp?'transparent':'var(--gold2)'};font-family:'JetBrains Mono',monospace;font-size:12px">${isExp?'':kdStr(p1k,p1d)}</td>
         <td class="col-p2" style="color:${isExp?'transparent':killColor2(avgP2k)};font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900">${isExp?'':p2k}</td>
+        <td class="col-p2" style="color:${isExp?'transparent':'var(--ice)'};font-family:'JetBrains Mono',monospace;font-size:14px">${isExp?'':p2d}</td>
         <td class="col-p2-last" style="color:${isExp?'transparent':'var(--ice)'};font-family:'JetBrains Mono',monospace;font-size:12px">${isExp?'':kdStr(p2k,p2d)}</td>
         <td>${isExp?'':winnerHtml(sessWinner)}</td>
         <td>${isExp?'':scoreHtml}</td>
@@ -2807,9 +2811,11 @@ function renderSessionTable(){
             <td style="color:var(--pewter);font-size:11px;font-family:'JetBrains Mono',monospace">${g.mode}</td>
             <td></td>
             <td>${placeBadge(g.p1.place)}</td>
-            <td class="col-p1" style="color:${killColor1(g.p1.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p1.kills}<span style="font-size:11px;color:var(--pewter);font-family:'JetBrains Mono',monospace;margin-left:5px">/ ${g.p1.deaths}d</span>${isPrK1?prBadge1:''}</td>
+            <td class="col-p1" style="color:${killColor1(g.p1.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p1.kills}${isPrK1?prBadge1:''}</td>
+            <td class="col-p1" style="color:var(--gold2);font-family:'JetBrains Mono',monospace;font-size:13px">${g.p1.deaths}</td>
             <td class="col-p1-last" style="color:var(--gold2);font-family:'JetBrains Mono',monospace;font-size:11px">${kdStr(g.p1.kills,g.p1.deaths)}${isPrKd1?prBadge1:''}</td>
-            <td class="col-p2" style="color:${killColor2(g.p2.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p2.kills}<span style="font-size:11px;color:var(--pewter);font-family:'JetBrains Mono',monospace;margin-left:5px">/ ${g.p2.deaths}d</span>${isPrK2?prBadge2:''}</td>
+            <td class="col-p2" style="color:${killColor2(g.p2.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p2.kills}${isPrK2?prBadge2:''}</td>
+            <td class="col-p2" style="color:var(--ice);font-family:'JetBrains Mono',monospace;font-size:13px">${g.p2.deaths}</td>
             <td class="col-p2-last" style="color:var(--ice);font-family:'JetBrains Mono',monospace;font-size:11px">${kdStr(g.p2.kills,g.p2.deaths)}${isPrKd2?prBadge2:''}</td>
             <td>${winnerHtml(g.winner)}</td>
             <td></td>
