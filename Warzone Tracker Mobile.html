@@ -219,8 +219,9 @@
     <div class="section-label">Session</div>
     <div class="session-bar">
       <div class="session-info">
+        <div id="sessionNum" style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--pewter);font-family:monospace;margin-bottom:2px"></div>
         <div id="sessionDate">—</div>
-        <div style="margin-top:2px;font-size:10px" id="gameCount">0 games this session</div>
+        <div style="margin-top:3px;font-size:10px;color:var(--silver);font-family:monospace" id="gameCount">Game #1</div>
       </div>
       <button class="new-session-btn" onclick="newSession()">+ New session</button>
     </div>
@@ -392,13 +393,17 @@
 
     const key = currentKey || todayKey();
     const sess = sessions.find(s=>s.dateKey===key);
-    const parts = key.split('_');
     const base = todayKey();
     const sessionsToday = sessions.filter(s=>s.dateKey.startsWith(base));
-    const sessNum = sessionsToday.length > 1 && parts[1] !== undefined ? ` · Session ${parseInt(parts[1]||'0')+1}` : '';
+    const sessIdx = sessionsToday.findIndex(s=>s.dateKey===key);
+    const sessNum = sessionsToday.length > 1 && sessIdx >= 0 ? `Session ${sessIdx+1}` : '';
     const gc = sess ? sess.games.length : 0;
-    $('sessionDate').innerHTML = `<strong>${keyToDate(key)}</strong>${sessNum}`;
-    $('gameCount').textContent = gc > 0 ? `${keyToDate(key)}${sessNum} — Game #${gc+1}` : `${keyToDate(key)}${sessNum}`;
+    const gameLabel = `Game #${gc+1}`;
+    // sessionDate toont alleen de datum in oranje
+    $('sessionDate').innerHTML = `<strong>${keyToDate(key)}</strong>`;
+    // sessNum erboven via aparte div, gameLabel eronder
+    const snEl = $('sessionNum'); if(snEl) snEl.textContent = sessNum;
+    $('gameCount').textContent = gameLabel;
     // sessionLabel removed
 
     // Session K/D
