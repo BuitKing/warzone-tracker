@@ -1634,8 +1634,8 @@ select option { background:#0a0c10; }
       </span>
     </div>
   </div>
-  <div class="perf-card" style="margin-bottom:16px;clip-path:none;border-left:3px solid var(--gold2);padding:12px 4px 12px 8px">
-    <div style="position:relative;height:384px"><canvas id="comboChart"></canvas></div>
+  <div class="perf-card" style="margin-bottom:16px;clip-path:none;border-left:3px solid var(--gold2);padding:12px 20px 12px 8px;overflow:hidden">
+    <div style="position:relative;height:384px;width:100%"><canvas id="comboChart"></canvas></div>
   </div>
 
   <div class="section-header" style="animation:fadeUp .5s .15s ease both;align-items:center">
@@ -3130,7 +3130,7 @@ function initCombo(){
       scales:{
         x:{ticks:tk, grid:{color:gc}, border:{color:gc}},
         yWins:{type:'linear', position:'left', display:false, beginAtZero:true, ticks:{stepSize:1}},
-        yKD:{type:'linear', position:'right', afterFit(axis){axis.width=52;}, ticks:{...tk, callback:v=>v.toFixed(1)}, grid:{display:false}, border:{color:gc}, beginAtZero:true}
+        yKD:{type:'linear', position:'right', afterFit(axis){axis.width=58;}, ticks:{...tk, callback:v=>v.toFixed(1)}, grid:{display:false}, border:{color:gc}, beginAtZero:true}
       }
     },
     plugins:[comboPlugin]
