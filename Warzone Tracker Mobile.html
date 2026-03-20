@@ -186,7 +186,7 @@
 </div>
 <script>
 (function(){
-  const VERSION = '20260320-005';
+  const VERSION = '20260320-006';
   function doUpdate(){
     localStorage.setItem('wz_version', VERSION);
     location.reload(true);
@@ -326,6 +326,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyD_WZzyOarT8F3oVj91UYJgD5HES3iFC4A",
@@ -337,13 +338,20 @@
     appId: "1:757574907604:web:9422ab8494dec09123ed41"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  const app  = initializeApp(firebaseConfig);
+  const db   = getDatabase(app);
+  const auth = getAuth(app);
 
-  window._fbSet   = (path, data) => set(ref(db, path), data);
-  window._fbListen = (path, cb) => onValue(ref(db, path), snap => cb(snap.val()));
-  window._fbReady = true;
-  document.dispatchEvent(new Event('firebase-ready'));
+  window._fbSet    = (path, data) => set(ref(db, path), data);
+  window._fbListen = (path, cb)   => onValue(ref(db, path), snap => cb(snap.val()));
+
+  signInAnonymously(auth).then(()=>{
+    window._fbReady = true;
+    document.dispatchEvent(new Event('firebase-ready'));
+  }).catch(()=>{
+    window._fbReady = true;
+    document.dispatchEvent(new Event('firebase-ready'));
+  });
 </script>
 
 <script>

@@ -1427,6 +1427,7 @@ select option { background:#0a0c10; }
         <div class="compare-box" data-tip="Avg kills per game across all sessions"><div class="compare-val" id="at-avgkills1">0.0</div><div class="compare-lbl">Avg Kills</div></div>
         <div class="compare-box" data-tip="Total games won on most kills"><div class="compare-val" id="at-gamewins1">0</div><div class="compare-lbl">Game Wins</div></div>
         <div class="compare-box" data-tip="Game wins in the current session"><div class="compare-val" id="at-sesswins1">0</div><div class="compare-lbl">Wins this sess.</div></div>
+        <div class="compare-box" data-tip="Gemiddelde eindpositie over alle games"><div class="compare-val" id="at-avgplace1">—</div><div class="compare-lbl">Avg Positie</div></div>
       </div>
     </div>
     <!-- P2 -->
@@ -1457,6 +1458,7 @@ select option { background:#0a0c10; }
         <div class="compare-box" data-tip="Avg kills per game across all sessions"><div class="compare-val" id="at-avgkills2">0.0</div><div class="compare-lbl">Avg Kills</div></div>
         <div class="compare-box" data-tip="Total games won on most kills"><div class="compare-val" id="at-gamewins2">0</div><div class="compare-lbl">Game Wins</div></div>
         <div class="compare-box" data-tip="Game wins in the current session"><div class="compare-val" id="at-sesswins2">0</div><div class="compare-lbl">Wins this sess.</div></div>
+        <div class="compare-box" data-tip="Gemiddelde eindpositie over alle games"><div class="compare-val" id="at-avgplace2">—</div><div class="compare-lbl">Avg Positie</div></div>
       </div>
     </div>
   </div>
@@ -1825,6 +1827,7 @@ select option { background:#0a0c10; }
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyD_WZzyOarT8F3oVj91UYJgD5HES3iFC4A",
@@ -1837,15 +1840,21 @@ select option { background:#0a0c10; }
   };
 
   const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  const db  = getDatabase(app);
+  const auth = getAuth(app);
 
-  // Expose Firebase functions to global scope for use in main script
-  window._fbSet = (path, data) => set(ref(db, path), data);
-  window._fbListen = (path, cb) => onValue(ref(db, path), snap => cb(snap.val()));
+  window._fbSet    = (path, data) => set(ref(db, path), data);
+  window._fbListen = (path, cb)   => onValue(ref(db, path), snap => cb(snap.val()));
 
-  // Signal that Firebase is ready
-  window._fbReady = true;
-  document.dispatchEvent(new Event('firebase-ready'));
+  // Anonymous sign-in zodat Firebase rules auth vereisen
+  signInAnonymously(auth).then(()=>{
+    window._fbReady = true;
+    document.dispatchEvent(new Event('firebase-ready'));
+  }).catch(()=>{
+    // Fallback: toch doorgaan (bijv. bij offline)
+    window._fbReady = true;
+    document.dispatchEvent(new Event('firebase-ready'));
+  });
 </script>
 
 <script>
@@ -2662,7 +2671,7 @@ function renderLeaderboard(){
 
   // Show dashes if no games at all
   if(totalN===0){
-    ['at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2','at-sesswins1','at-sesswins2'].forEach(id=>{
+    ['at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2','at-sesswins1','at-sesswins2','at-avgplace1','at-avgplace2'].forEach(id=>{
       const el=document.getElementById(id);
       if(el){ el.textContent='—'; el.style.color='var(--silver)'; el.className='compare-val equal'; }
     });
@@ -2674,6 +2683,17 @@ function renderLeaderboard(){
     const sessW1 = activeSess ? activeSess.games.filter(g=>g.winner===0).length : 0;
     const sessW2 = activeSess ? activeSess.games.filter(g=>g.winner===1).length : 0;
     cmp('at-sesswins1','at-sesswins2', sessW1, sessW2, v=>v);
+    // Avg positie (lager = beter)
+    const avgPlace = pk => {
+      const gs = allGamesTotal.filter(g=>g[pk].place>0);
+      return gs.length ? gs.reduce((s,g)=>s+g[pk].place,0)/gs.length : 0;
+    };
+    const ap1=avgPlace('p1'), ap2=avgPlace('p2');
+    if(ap1>0||ap2>0){
+      cmp('at-avgplace1','at-avgplace2', ap1, ap2, v=>v.toFixed(1), true);
+    } else {
+      ['at-avgplace1','at-avgplace2'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.textContent='—'; el.style.color='var(--silver)'; el.className='compare-val equal'; } });
+    }
   }
 
   // Shared: total #1 finishes all time (ongefilterd)
@@ -3243,7 +3263,7 @@ function updatePerformance(){
     const maxKills  = Math.max(...games.map(g=>g[pk].kills));
     const maxKd     = Math.max(...games.map(g=>kdVal(g[pk].kills,g[pk].deaths)));
     const avgKills  = games.reduce((s,g)=>s+g[pk].kills,0)/games.length;
-    const avgPlaceRaw = games.reduce((s,g)=>s+g[pk].place,0)/games.length;
+    const avgPlaceRaw = games.filter(g=>g[pk].place>0).reduce((s,g)=>s+g[pk].place,0) / (games.filter(g=>g[pk].place>0).length || 1);
     const mkEl = document.getElementById(`perf-maxkills${sfx}`);
     const mkdEl = document.getElementById(`perf-maxkd${sfx}`);
     const akEl = document.getElementById(`perf-avgkills${sfx}`);
