@@ -807,6 +807,9 @@ td { padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.035); vertical
 .session-row.expanded td.col-p1-last { background: rgba(224,110,0,.07); border-right:1px solid rgba(224,110,0,.2); }
 .session-row.expanded td.col-p2 { background: rgba(0,184,230,.05); }
 .session-row.expanded td.col-p2-last { background: rgba(0,184,230,.05); border-right:1px solid rgba(0,184,230,.15); }
+.active-session td { background:rgba(46,232,122,.03) !important; }
+.active-session td:first-child { border-left:2px solid rgba(46,232,122,.5); }
+.active-session:hover td { background:rgba(46,232,122,.06) !important; }
 
 .game-sub-row td {
   background:rgba(0,0,0,.3); font-size:12px;
@@ -1872,37 +1875,61 @@ function init() {
   initCombo();
   render();
 
-  // Firebase live listener — werkt bij als telefoon iets opslaat
+  // Firebase live listener
   const startFirebaseListener = () => {
     if(!window._fbReady || !window._fbListen) return;
-    let isFirstSync = true;
+
     window._fbListen('tracker', data => {
-      if(!data && sessions.length > 0){
-        // Firebase is leeg maar we hebben lokale data — push het omhoog
-        const now = Date.now();
-        localStorage.setItem('wz_last_save', String(now));
-        window._fbSet('tracker', { sessions, playerNames, playerInitials, updatedAt: now });
+      if(!data){
+        // Firebase empty — push local data up
+        if(sessions.length > 0){
+          const now = Date.now();
+          localStorage.setItem('wz_last_save', String(now));
+          window._fbSet('tracker', {
+            sessions, playerNames, playerInitials,
+            currentSessionKey: currentSessionKey || todayKey(),
+            updatedAt: now
+          });
+        }
         return;
       }
-      if(!data) return;
-      if(isFirstSync){
-        isFirstSync = false;
-        if(sessions.length > 0) return;
-      }
+
       const fbUpdated = data.updatedAt || 0;
       const localUpdated = parseInt(localStorage.getItem('wz_last_save') || '0');
+
       if(fbUpdated > localUpdated){
+        // Firebase is newer — take everything from Firebase
         sessions = data.sessions || [];
         playerNames = data.playerNames || playerNames;
         playerInitials = data.playerInitials || playerInitials;
+
+        // Always sync currentSessionKey from Firebase
+        if(data.currentSessionKey){
+          // Only update if the key actually exists in sessions, or it's for today
+          const keyExists = sessions.find(s=>s.dateKey===data.currentSessionKey);
+          const isToday = data.currentSessionKey.startsWith(todayKey());
+          if(keyExists || isToday){
+            currentSessionKey = data.currentSessionKey;
+          }
+        }
+
+        // Persist to localStorage
         localStorage.setItem('wz_sessions_v2', JSON.stringify(sessions));
         localStorage.setItem('wz_players', JSON.stringify(playerNames));
         localStorage.setItem('wz_initials', JSON.stringify(playerInitials));
         localStorage.setItem('wz_last_save', String(fbUpdated));
+
         updateInitials();
         updatePanelDate();
         render();
-        showToast('↓ Synced from Firebase');
+        showToast('↓ Synced');
+      } else if(localUpdated > 0 && fbUpdated < localUpdated){
+        // Local is newer — push to Firebase to keep it current
+        window._fbSet('tracker', {
+          sessions, playerNames, playerInitials,
+          currentSessionKey: currentSessionKey || todayKey(),
+          updatedAt: localUpdated
+        });
       }
     });
   };
@@ -1964,16 +1991,31 @@ function newSessionKey() {
   const base = todayKey();
   const existing = sessions.filter(s=>s.dateKey.startsWith(base));
   if(existing.length === 0) return base;
-  return `${base}_${existing.length + 1}`;
+  return `${base}_${existing.length}`; // base_1, base_2, etc — matches mobile
 }
 
 function startNieuweSessie() {
   currentSessionKey = newSessionKey();
   updatePanelDate();
+  // Push meteen naar Firebase zodat mobile weet welke sessie actief is
+  if(window._fbReady && window._fbSet){
+    const now = Date.now();
+    localStorage.setItem('wz_last_save', String(now));
+    window._fbSet('tracker', {
+      sessions, playerNames, playerInitials,
+      currentSessionKey,
+      updatedAt: now
+    });
+  }
 }
 
 function updatePanelDate() {
-  const key = currentSessionKey || todayKey();
+  // Gebruik currentSessionKey of de meest recente sessie van vandaag
+  const key = currentSessionKey || (() => {
+    const todaySess = sessions.filter(s=>s.dateKey.startsWith(todayKey()));
+    if(todaySess.length === 0) return todayKey();
+    return todaySess.sort((a,b)=>b.dateKey.localeCompare(a.dateKey))[0].dateKey;
+  })();
   const existing = sessions.find(s=>s.dateKey===key);
   const gc = existing ? existing.games.length : 0;
   const el = document.getElementById('panelDateLabel');
@@ -2411,8 +2453,14 @@ function renderLeaderboard(){
     return { kd:ng===0?0:kdVal(k,d), avgKills:ng?k/ng:0, gameWins:ng?totalGameWins/Math.max(sessions.length,1):0 };
   };
 
-  // Sessie stats — alleen de huidige actieve sessie (currentSessionKey of vandaag)
-  const activeKey = currentSessionKey || todayKey();
+  // Sessie stats — actieve sessie, of meest recente van vandaag
+  const activeKey = (() => {
+    if(currentSessionKey) return currentSessionKey;
+    // Meest recente sessie van vandaag
+    const todaySess = sessions.filter(s=>s.dateKey.startsWith(todayKey()));
+    if(todaySess.length === 0) return todayKey();
+    return todaySess.sort((a,b)=>b.dateKey.localeCompare(a.dateKey))[0].dateKey;
+  })();
   const activeSess = sessions.find(s=>s.dateKey===activeKey);
   const aggToday=pk=>{
     if(!activeSess||activeSess.games.length===0) return { kd:0, avgKills:0, gameWins:0 };
@@ -2632,15 +2680,6 @@ function renderSessionTable(){
       return;
     }
 
-    // Find best session (highest avg combined kills)
-    let bestKey=null, bestScore=-1;
-    allFiltered.forEach(sess=>{
-      const fg = modeFilter==='all' ? sess.games : sess.games.filter(g=>g.mode===modeFilter);
-      if(!fg.length) return;
-      const avg = fg.reduce((s,g)=>s+g.p1.kills+g.p2.kills,0)/fg.length;
-      if(avg>bestScore){ bestScore=avg; bestKey=sess.dateKey; }
-    });
-
     // Bereken gemiddelde kills per speler voor kleurcodering
     const allG = allGames();
     const avgK1 = allG.length ? allG.reduce((s,g)=>s+g.p1.kills,0)/allG.length : 0;
@@ -2666,7 +2705,6 @@ function renderSessionTable(){
       const sessWinner=w1>w2?0:w2>w1?1:-1;
       const isExp=expandedSessions.has(sess.dateKey);
       const dk=sess.dateKey;
-      const isBest=dk===bestKey && allFiltered.length>1;
 
       const row = document.createElement('tr');
       const isActive = sess.dateKey === (currentSessionKey || todayKey());

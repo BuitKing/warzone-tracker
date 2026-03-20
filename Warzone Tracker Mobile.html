@@ -448,9 +448,17 @@
   function newSession(){
     const base = todayKey();
     const existing = sessions.filter(s=>s.dateKey.startsWith(base));
-    const newIdx = existing.length;
-    currentKey = newIdx === 0 ? base : `${base}_${newIdx}`;
+    // Consistent met tracker: base, base_1, base_2, ...
+    currentKey = existing.length === 0 ? base : `${base}_${existing.length}`;
     updateUI();
+    // Push nieuwe sessie key naar Firebase zodat PC meteen weet welke sessie actief is
+    if(window._fbReady && window._fbSet){
+      window._fbSet('tracker', {
+        sessions, playerNames, playerInitials,
+        currentSessionKey: currentKey,
+        updatedAt: Date.now()
+      });
+    }
     showToast('New session started');
   }
 
@@ -505,18 +513,25 @@
       .finally(()=>{ btn.disabled=false; });
   }
 
-  // Init — wait for Firebase then listen
   function init(){
     setSync('syncing');
     window._fbListen('tracker', data=>{
       if(data){
-        sessions      = data.sessions      || [];
-        playerNames   = (data.playerNames && data.playerNames[0] !== 'Player 1') ? data.playerNames : playerNames;
-        playerInitials= data.playerInitials|| playerInitials;
-        // Gebruik de actieve sessie van de PC tracker
+        sessions      = data.sessions || [];
+        // Namen alleen updaten als ze niet de standaard placeholder zijn
+        if(data.playerNames && data.playerNames[0] !== 'Player 1')
+          playerNames = data.playerNames;
+        playerInitials = data.playerInitials || playerInitials;
+
+        // Actieve sessie altijd van Firebase overnemen
         if(data.currentSessionKey){
-          currentKey = data.currentSessionKey;
+          const exists = sessions.find(s=>s.dateKey===data.currentSessionKey);
+          const isToday = data.currentSessionKey.startsWith(todayKey());
+          if(exists || isToday){
+            currentKey = data.currentSessionKey;
+          }
         } else if(!currentKey && sessions.length > 0){
+          // Fallback: meest recente sessie
           const sorted = [...sessions].sort((a,b)=>b.dateKey.localeCompare(a.dateKey));
           currentKey = sorted[0].dateKey;
         }
