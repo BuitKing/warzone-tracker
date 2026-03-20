@@ -2825,7 +2825,9 @@ function renderSessionTable(){
 
       if(isExp){
         const pr = calcPR();
-        filteredGames.forEach((g,gi)=>{
+        // Meest recent bovenaan — originele index bewaren voor #-nummer
+        const reversed = filteredGames.map((g,gi)=>({g,gi})).reverse();
+        reversed.forEach(({g,gi})=>{
           const isPrK1  = allG.length>1 && g.p1.kills  === pr.maxK1  && pr.maxK1>0;
           const isPrK2  = allG.length>1 && g.p2.kills  === pr.maxK2  && pr.maxK2>0;
           const isPrKd1 = allG.length>1 && kdVal(g.p1.kills,g.p1.deaths) === pr.maxKd1 && pr.maxKd1>0;
