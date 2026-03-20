@@ -186,7 +186,7 @@
 </div>
 <script>
 (function(){
-  const VERSION = '20260320-004';
+  const VERSION = '20260320-005';
   function doUpdate(){
     localStorage.setItem('wz_version', VERSION);
     location.reload(true);
@@ -201,6 +201,7 @@
   }
 })();
 </script>
+<div class="header">
   <div style="display:flex;align-items:center;flex:1">
     <div class="header-logo">Warzone Tracker</div>
     <div class="header-sep"></div>
@@ -286,6 +287,19 @@
   </div>
 
   <button class="save-btn" id="saveBtn" onclick="saveGame()">✓  Save game</button>
+
+  <!-- Laatste game -->
+  <div id="lastGame" style="display:none;background:var(--surface);border:1px solid var(--rim);border-left:3px solid var(--gold2);padding:10px 14px;">
+    <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--pewter);font-family:monospace;margin-bottom:6px">Laatste game</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div id="lg-place" style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--gold3)"></div>
+      <div id="lg-winner" style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;">
+      <div style="font-size:10px;color:var(--silver);font-family:monospace;" id="lg-p1"></div>
+      <div style="font-size:10px;color:var(--silver);font-family:monospace;" id="lg-p2"></div>
+    </div>
+  </div>
 
   <!-- Session K/D -->
   <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:14px;margin-top:4px;">
@@ -419,6 +433,7 @@
       if(valEl) valEl.textContent = kd;
       if(subEl) subEl.textContent = games.length ? `${k} kills · ${d} deaths` : '0 kills · 0 deaths';
     });
+    updateLastGame();
   }
 
   function onPlaceInput(val){
@@ -475,6 +490,24 @@
   }
 
   function kdVal(k,d){ return d===0 ? k : k/d; }
+
+  function updateLastGame(){
+    const key = currentKey || todayKey();
+    const sess = sessions.find(s=>s.dateKey===key);
+    const lg = $('lastGame');
+    if(!lg) return;
+    if(!sess || sess.games.length === 0){ lg.style.display='none'; return; }
+    const g = sess.games[sess.games.length - 1];
+    lg.style.display = 'block';
+    const pl = g.p1.place;
+    $('lg-place').textContent = pl===1?'#1 🏆':pl<=5?`Top ${pl}`:pl<=10?'Top 10':pl<=20?'Top 20':'#20+';
+    const winEl = $('lg-winner');
+    if(g.winner===0){ winEl.textContent=playerNames[0]+' wins'; winEl.style.color='var(--gold2)'; }
+    else if(g.winner===1){ winEl.textContent=playerNames[1]+' wins'; winEl.style.color='var(--ice)'; }
+    else { winEl.textContent='Tie'; winEl.style.color='var(--pewter)'; }
+    $('lg-p1').textContent=`${playerNames[0]}: ${g.p1.kills}k · ${g.p1.deaths}d`;
+    $('lg-p2').textContent=`${playerNames[1]}: ${g.p2.kills}k · ${g.p2.deaths}d`;
+  }
 
   function saveGame(){
     const p1 = { kills: parseInt($('p1kills').value)||0, deaths: parseInt($('p1deaths').value)||0, place: selectedPlace };
