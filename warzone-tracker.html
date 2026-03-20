@@ -1713,17 +1713,13 @@ select option { background:#0a0c10; }
   <!-- POSITIE -->
   <div class="panel-section">
     <div class="panel-section-label">Final position</div>
-    <div class="pos-grid">
-      <button type="button" class="pos-btn" onclick="selectPlace(1)">🏆 #1</button>
-      <button type="button" class="pos-btn" onclick="selectPlace(2)">#2</button>
-      <button type="button" class="pos-btn" onclick="selectPlace(3)">#3</button>
-      <button type="button" class="pos-btn" onclick="selectPlace(4)">#4</button>
-      <button type="button" class="pos-btn" onclick="selectPlace(5)">#5</button>
-      <button type="button" class="pos-btn" onclick="selectPlace(10)">Top 10</button>
-      <button type="button" class="pos-btn" onclick="selectPlace(20)">Top 20</button>
-      <button type="button" class="pos-btn" onclick="selectPlace(21)">#20+</button>
+    <div style="background:rgba(0,0,0,.55);border:1px solid var(--rim);border-left:3px solid var(--gold2);padding:10px 14px;">
+      <input type="number" id="sharedPlace" min="1" max="150" placeholder="1 – 150"
+        inputmode="numeric"
+        style="background:transparent;border:none;outline:none;font-size:36px;font-weight:900;color:var(--gold3);width:100%;font-family:'Barlow Condensed',sans-serif;-webkit-appearance:none;appearance:none;padding:0;line-height:1;"
+        oninput="onDesktopPlaceInput(this.value)">
     </div>
-    <input type="hidden" id="sharedPlace" value="2">
+    <div id="desktopPlaceCategory" style="font-size:11px;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-top:6px;color:var(--pewter)">— vul positie in</div>
   </div>
 
   <!-- MODE -->
@@ -2162,7 +2158,7 @@ function saveGame() {
   ['p1kills','p1deaths','p2kills','p2deaths'].forEach(id=>{
     document.getElementById(id).value='';
   });
-  selectPlace(2);
+  selectPlace(null);
   selectMode('Battle Royale');
   updatePanelDate();
   resetInactivityTimer();
@@ -2466,12 +2462,26 @@ function winnerHtml(w){
   return `<span class="winner-cell win-tie">Tie</span>`;
 }
 
+function onDesktopPlaceInput(val){
+  const n = parseInt(val);
+  const cat = document.getElementById('desktopPlaceCategory');
+  if(!cat) return;
+  if(!val || isNaN(n) || n < 1){
+    cat.textContent = '— vul positie in';
+    cat.style.color = 'var(--pewter)';
+    return;
+  }
+  if(n === 1){       cat.textContent = '🏆 #1 — winnaar!';       cat.style.color = 'var(--gold3)'; }
+  else if(n <= 5){   cat.textContent = `Top 5  (positie ${n})`;  cat.style.color = 'var(--emerald)'; }
+  else if(n <= 10){  cat.textContent = `Top 10  (positie ${n})`; cat.style.color = 'var(--ice)'; }
+  else if(n <= 20){  cat.textContent = `Top 20  (positie ${n})`; cat.style.color = 'var(--silver)'; }
+  else {             cat.textContent = `#20+  (positie ${n})`;   cat.style.color = 'var(--pewter)'; }
+}
+
 function selectPlace(val) {
-  document.getElementById('sharedPlace').value = val;
-  const label = val===1?'🏆 #1':val===10?'Top 10':val===20?'Top 20':val===21?'#20+':'#'+val;
-  document.querySelectorAll('.pos-btn').forEach(b => {
-    b.classList.toggle('active', b.textContent.trim() === label);
-  });
+  const el = document.getElementById('sharedPlace');
+  if(el) el.value = val || '';
+  onDesktopPlaceInput(val || '');
 }
 
 function setDateFilter(val){
