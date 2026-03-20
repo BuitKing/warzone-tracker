@@ -1634,7 +1634,7 @@ select option { background:#0a0c10; }
       </span>
     </div>
   </div>
-  <div class="perf-card" style="margin-bottom:16px;clip-path:none;border-left:3px solid var(--gold2);padding:12px 8px">
+  <div class="perf-card" style="margin-bottom:16px;clip-path:none;border-left:3px solid var(--gold2);padding:12px 4px 12px 8px">
     <div style="position:relative;height:384px"><canvas id="comboChart"></canvas></div>
   </div>
 
@@ -3077,17 +3077,7 @@ function initCombo(){
           const pillBg    = aboveAvg ? '#0d2a1a' : '#2a0d12';
           const pillBorder= aboveAvg ? 'rgba(46,232,122,.8)' : 'rgba(224,48,80,.7)';
 
-          let pillCY = pt.y + preferOffset;
-
-          // Avoid overlapping bar win labels
-          if(di===3){
-            const bar0 = chart.getDatasetMeta(0).data[i];
-            const bar1 = chart.getDatasetMeta(1).data[i];
-            const barTop = Math.min(bar0?bar0.y:Infinity, bar1?bar1.y:Infinity);
-            if(pillCY + pillH/2 > barTop - 4) pillCY = barTop - 4 - pillH/2;
-          }
-          pillCY = Math.max(area.top + pillH/2 + 2, Math.min(area.bottom - pillH/2 - 2, pillCY));
-
+          const pillCY = Math.max(area.top + pillH/2 + 2, Math.min(area.bottom - pillH/2 - 2, pt.y + preferOffset));
           const px = pt.x - pillW/2, py = pillCY - pillH/2;
           ctx.save();
           ctx.beginPath();
@@ -3116,7 +3106,7 @@ function initCombo(){
     },
     options:{
       responsive:true, maintainAspectRatio:false,
-      layout:{padding:{top:30, bottom:28, right:12}},
+      layout:{padding:{top:30, bottom:28, right:0}},
       animation:{duration:500, easing:'easeOutQuart'},
       interaction:{mode:'index', intersect:false},
       plugins:{
@@ -3140,7 +3130,7 @@ function initCombo(){
       scales:{
         x:{ticks:tk, grid:{color:gc}, border:{color:gc}},
         yWins:{type:'linear', position:'left', display:false, beginAtZero:true, ticks:{stepSize:1}},
-        yKD:{type:'linear', position:'right', ticks:{...tk, callback:v=>v.toFixed(1)}, grid:{display:false}, border:{color:gc}, beginAtZero:true}
+        yKD:{type:'linear', position:'right', afterFit(axis){axis.width=52;}, ticks:{...tk, callback:v=>v.toFixed(1)}, grid:{display:false}, border:{color:gc}, beginAtZero:true}
       }
     },
     plugins:[comboPlugin]
