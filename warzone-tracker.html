@@ -1635,7 +1635,7 @@ select option { background:#0a0c10; }
     </div>
   </div>
   <div class="perf-card" style="margin-bottom:16px;clip-path:none;border-left:3px solid var(--gold2);padding:12px 8px">
-    <div style="position:relative;height:320px"><canvas id="comboChart"></canvas></div>
+    <div style="position:relative;height:384px"><canvas id="comboChart"></canvas></div>
   </div>
 
   <div class="section-header" style="animation:fadeUp .5s .15s ease both;align-items:center">
@@ -3116,7 +3116,7 @@ function initCombo(){
     },
     options:{
       responsive:true, maintainAspectRatio:false,
-      layout:{padding:{top:30, bottom:28}},
+      layout:{padding:{top:30, bottom:28, right:12}},
       animation:{duration:500, easing:'easeOutQuart'},
       interaction:{mode:'index', intersect:false},
       plugins:{
