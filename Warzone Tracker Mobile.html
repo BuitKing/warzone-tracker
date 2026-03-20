@@ -186,7 +186,7 @@
 </div>
 <script>
 (function(){
-  const VERSION = '20260320-003';
+  const VERSION = '20260320-004';
   function doUpdate(){
     localStorage.setItem('wz_version', VERSION);
     location.reload(true);
@@ -219,8 +219,10 @@
     <div class="section-label">Session</div>
     <div class="session-bar">
       <div class="session-info">
-        <div id="sessionNum" style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--pewter);font-family:monospace;margin-bottom:2px"></div>
-        <div id="sessionDate">—</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div id="sessionDate">—</div>
+          <div id="sessionNum" style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--pewter);font-family:monospace"></div>
+        </div>
         <div style="margin-top:3px;font-size:10px;color:var(--silver);font-family:monospace" id="gameCount">Game #1</div>
       </div>
       <button class="new-session-btn" onclick="newSession()">+ New session</button>
