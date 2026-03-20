@@ -1724,7 +1724,7 @@ select option { background:#0a0c10; }
         style="background:transparent;border:none;outline:none;font-size:36px;font-weight:900;color:var(--gold3);width:100%;font-family:'Barlow Condensed',sans-serif;-webkit-appearance:none;appearance:none;padding:0;line-height:1;"
         oninput="onDesktopPlaceInput(this.value)">
     </div>
-    <div id="desktopPlaceCategory" style="font-size:11px;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-top:6px;color:var(--pewter)">— vul positie in</div>
+    <div id="desktopPlaceCategory" style="font-size:11px;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-top:6px;color:var(--pewter)">— enter position</div>
   </div>
 
   <!-- MODE -->
@@ -2471,15 +2471,15 @@ function onDesktopPlaceInput(val){
   const cat = document.getElementById('desktopPlaceCategory');
   if(!cat) return;
   if(!val || isNaN(n) || n < 1){
-    cat.textContent = '— vul positie in';
+    cat.textContent = '— enter position';
     cat.style.color = 'var(--pewter)';
     return;
   }
-  if(n === 1){       cat.textContent = '🏆 #1 — winnaar!';       cat.style.color = 'var(--gold3)'; }
-  else if(n <= 5){   cat.textContent = `Top 5  (positie ${n})`;  cat.style.color = 'var(--emerald)'; }
-  else if(n <= 10){  cat.textContent = `Top 10  (positie ${n})`; cat.style.color = 'var(--ice)'; }
-  else if(n <= 20){  cat.textContent = `Top 20  (positie ${n})`; cat.style.color = 'var(--silver)'; }
-  else {             cat.textContent = `#20+  (positie ${n})`;   cat.style.color = 'var(--pewter)'; }
+  if(n === 1){       cat.textContent = '🏆 #1 — winner!';        cat.style.color = 'var(--gold3)'; }
+  else if(n <= 5){   cat.textContent = `Top 5  (position ${n})`; cat.style.color = 'var(--emerald)'; }
+  else if(n <= 10){  cat.textContent = `Top 10  (position ${n})`;cat.style.color = 'var(--ice)'; }
+  else if(n <= 20){  cat.textContent = `Top 20  (position ${n})`;cat.style.color = 'var(--silver)'; }
+  else {             cat.textContent = `#20+  (position ${n})`;  cat.style.color = 'var(--pewter)'; }
 }
 
 function selectPlace(val) {
@@ -3172,9 +3172,9 @@ function updateCombo(){
   comboChart.data.datasets[2].data  = kd1; comboChart.data.datasets[2].label = playerNames[0];
   comboChart.data.datasets[3].data  = kd2; comboChart.data.datasets[3].label = playerNames[1];
 
-  // Dynamic bar scale — max wins * 4 so bars stay compact, minimum 8
+  // Dynamic bar scale — max wins * 1.5 so bars scale naturally, minimum 4
   const maxWins = Math.max(...w1, ...w2, 1);
-  comboChart.options.scales.yWins.max = Math.max(maxWins * 4, 8);
+  comboChart.options.scales.yWins.max = Math.max(Math.ceil(maxWins * 1.5), 4);
   comboChart.data.datasets[2]._avg  = avg1;
   comboChart.data.datasets[3]._avg  = avg2;
   comboChart.data.datasets[2].pointBackgroundColor = kd1.map(v=>v>=avg1?'#2ee87a':'#e03050');
