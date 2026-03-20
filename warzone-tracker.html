@@ -1305,7 +1305,13 @@ select option { background:#0a0c10; }
     const val = document.getElementById('pwInput').value;
     if(val === '1954'){
       localStorage.setItem('wz_auth','granted');
+      localStorage.removeItem('wz_viewer');
       document.getElementById('pwOverlay').style.display='none';
+    } else if(val === '1900'){
+      localStorage.setItem('wz_auth','granted');
+      localStorage.setItem('wz_viewer','true');
+      document.getElementById('pwOverlay').style.display='none';
+      applyViewerMode();
     } else {
       const err = document.getElementById('pwError');
       err.textContent = 'Incorrect password';
@@ -1313,11 +1319,28 @@ select option { background:#0a0c10; }
       setTimeout(()=>err.textContent='',2000);
     }
   }
+  function applyViewerMode(){
+    // Verberg add-panel
+    const ap = document.querySelector('.add-panel');
+    if(ap) ap.style.display='none';
+    // Voeg viewer badge toe in header
+    const hr = document.querySelector('.header-right');
+    if(hr){
+      const badge = document.createElement('div');
+      badge.style.cssText='font-family:\'JetBrains Mono\',monospace;font-size:10px;letter-spacing:2px;color:var(--ice);border:1px solid rgba(0,174,221,.3);padding:4px 12px;text-transform:uppercase';
+      badge.textContent='👁 Viewer';
+      hr.prepend(badge);
+    }
+  }
   window.checkPw = checkPw;
-  if(localStorage.getItem('wz_auth') !== 'granted'){
+  window.applyViewerMode = applyViewerMode;
+  const auth   = localStorage.getItem('wz_auth');
+  const viewer = localStorage.getItem('wz_viewer');
+  if(auth !== 'granted'){
     document.getElementById('pwOverlay').style.display='flex';
   } else {
     document.getElementById('pwOverlay').style.display='none';
+    if(viewer === 'true') document.addEventListener('DOMContentLoaded', applyViewerMode);
   }
 })();
 </script>
@@ -1364,6 +1387,7 @@ select option { background:#0a0c10; }
       <button class="toggle-btn active" id="toggleSession" onclick="setView('session')">Per Session</button>
       <button class="toggle-btn"        id="toggleTotal"   onclick="setView('total')">Total</button>
     </div>
+    <button class="btn btn-ghost" onclick="logOut()" style="font-size:10px;padding:0 14px;height:28px" title="Uitloggen">⏻ Logout</button>
   </div>
 </header>
 
@@ -2393,7 +2417,11 @@ function setBg(theme){
   localStorage.setItem('wz_bg', theme);
 }
 
-function kdVal(k,d){ return d===0?k:k/d; }
+function logOut(){
+  localStorage.removeItem('wz_auth');
+  localStorage.removeItem('wz_viewer');
+  location.reload();
+}
 function kdStr(k,d){ return kdVal(k,d).toFixed(2); }
 function tsToTime(ts){ if(!ts) return '—'; const d=new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 
@@ -2820,8 +2848,10 @@ function renderSessionTable(){
             <td>${winnerHtml(g.winner)}</td>
             <td></td>
             <td style="display:flex;gap:4px;align-items:center">
-              <button class="btn btn-ghost" style="font-size:10px;padding:3px 8px" onclick="event.stopPropagation();openEdit('${dk}',${gi})">✎</button>
-              <button class="btn btn-danger" onclick="event.stopPropagation();deleteGame('${dk}',${gi})">✕</button>
+              ${localStorage.getItem('wz_viewer')==='true'?'':
+                `<button class="btn btn-ghost" style="font-size:10px;padding:3px 8px" onclick="event.stopPropagation();openEdit('${dk}',${gi})">✎</button>
+                 <button class="btn btn-danger" onclick="event.stopPropagation();deleteGame('${dk}',${gi})">✕</button>`
+              }
             </td>`;
           tbody.appendChild(subRow);
         });
