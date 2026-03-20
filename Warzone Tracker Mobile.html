@@ -186,7 +186,7 @@
 </div>
 <script>
 (function(){
-  const VERSION = '20260320-007';
+  const VERSION = '20260320-008';
   function doUpdate(){
     localStorage.setItem('wz_version', VERSION);
     location.reload(true);
@@ -239,6 +239,7 @@
         style="background:transparent;border:none;outline:none;font-size:36px;font-weight:900;color:var(--gold3);width:100%;font-family:'Barlow Condensed',system-ui,sans-serif;-webkit-appearance:none;"
         oninput="onPlaceInput(this.value)">
     </div>
+    <div id="placeCategory" style="font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-top:6px;color:var(--pewter)">— enter position</div>
   </div>
 
   <!-- Mode -->
@@ -446,30 +447,19 @@
 
   function onPlaceInput(val){
     const n = parseInt(val);
-    if(!val || isNaN(n) || n < 1){ 
+    const cat = document.getElementById('placeCategory');
+    if(!val || isNaN(n) || n < 1){
       selectedPlace = 2;
-      document.getElementById('placeCategory').style.color = 'var(--pewter)';
-      document.getElementById('placeCategory').textContent = '— selecteer';
+      if(cat){ cat.textContent='— enter position'; cat.style.color='var(--pewter)'; }
       return;
     }
     selectedPlace = n;
-    const cat = document.getElementById('placeCategory');
-    if(n === 1){
-      cat.textContent = '🏆 #1 — winnaar!';
-      cat.style.color = 'var(--gold3)';
-    } else if(n <= 5){
-      cat.textContent = `Top 5  (positie ${n})`;
-      cat.style.color = 'var(--emerald)';
-    } else if(n <= 10){
-      cat.textContent = `Top 10  (positie ${n})`;
-      cat.style.color = 'var(--ice)';
-    } else if(n <= 20){
-      cat.textContent = `Top 20  (positie ${n})`;
-      cat.style.color = 'var(--silver)';
-    } else {
-      cat.textContent = `#20+  (positie ${n})`;
-      cat.style.color = 'var(--pewter)';
-    }
+    if(!cat) return;
+    if(n === 1){       cat.textContent='🏆 #1 — winner!';        cat.style.color='var(--gold3)'; }
+    else if(n <= 5){   cat.textContent=`Top 5  (position ${n})`; cat.style.color='var(--emerald)'; }
+    else if(n <= 10){  cat.textContent=`Top 10  (position ${n})`;cat.style.color='var(--ice)'; }
+    else if(n <= 20){  cat.textContent=`Top 20  (position ${n})`;cat.style.color='var(--silver)'; }
+    else {             cat.textContent=`#20+  (position ${n})`;  cat.style.color='var(--pewter)'; }
   }
 
   function setPlace(p){ selectedPlace = p; }
