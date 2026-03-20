@@ -2821,7 +2821,7 @@ function renderSessionTable(){
     const killColor2 = (k) => k > avgK2 ? 'var(--emerald)' : k < avgK2 && avgK2>0 ? 'var(--ruby)' : 'var(--ice)';
 
     let rowsAdded = 0;
-    [...allFiltered].sort((a,b)=>b.dateKey.localeCompare(a.dateKey)).forEach(sess=>{
+    [...allFiltered].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).forEach(sess=>{
       const filteredGames = modeFilter==='all' ? sess.games : sess.games.filter(g=>g.mode===modeFilter);
       if(!filteredGames.length) return;
 
@@ -2845,7 +2845,7 @@ function renderSessionTable(){
       const scoreHtml = isExp ? '' : `<span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:1px;white-space:nowrap"><span style="color:var(--gold2)">${w1}</span><span style="color:var(--pewter);margin:0 4px">–</span><span style="color:var(--ice)">${w2}</span></span>`;
 
       row.innerHTML = `
-        <td style="display:flex;align-items:center;gap:6px"><span class="expand-icon">▶</span>${isActive?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2ee87a;box-shadow:0 0 6px #2ee87a;flex-shrink:0"></span>':''}</td>
+        <td><div style="display:flex;align-items:center;gap:6px;height:100%"><span class="expand-icon">▶</span>${isActive?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2ee87a;box-shadow:0 0 6px #2ee87a;flex-shrink:0"></span>':''}</div></td>
         <td style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:1px;color:var(--platinum)">${sess.date}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--silver)">${tsToTime(sess.createdAt)}</td>
         <td>${isExp?'':` <span class="games-badge">${filteredGames.length} game${filteredGames.length!==1?'s':''}</span>`}</td>
