@@ -2422,6 +2422,7 @@ function logOut(){
   localStorage.removeItem('wz_viewer');
   location.reload();
 }
+function kdVal(k,d){ return d===0?k:k/d; }
 function kdStr(k,d){ return kdVal(k,d).toFixed(2); }
 function tsToTime(ts){ if(!ts) return '—'; const d=new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 
