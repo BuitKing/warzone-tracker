@@ -393,9 +393,12 @@
     const key = currentKey || todayKey();
     const sess = sessions.find(s=>s.dateKey===key);
     const parts = key.split('_');
-    const sessNum = parts[1] ? ` · Session ${parseInt(parts[1])+1}` : '';
+    const base = todayKey();
+    const sessionsToday = sessions.filter(s=>s.dateKey.startsWith(base));
+    const sessNum = sessionsToday.length > 1 && parts[1] !== undefined ? ` · Session ${parseInt(parts[1]||'0')+1}` : '';
+    const gc = sess ? sess.games.length : 0;
     $('sessionDate').innerHTML = `<strong>${keyToDate(key)}</strong>${sessNum}`;
-    $('gameCount').textContent = sess ? `${sess.games.length} game${sess.games.length!==1?'s':''} this session` : '0 games this session';
+    $('gameCount').textContent = gc > 0 ? `${keyToDate(key)}${sessNum} — Game #${gc+1}` : `${keyToDate(key)}${sessNum}`;
     // sessionLabel removed
 
     // Session K/D
