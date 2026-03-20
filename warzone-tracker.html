@@ -2807,9 +2807,9 @@ function renderSessionTable(){
             <td style="color:var(--pewter);font-size:11px;font-family:'JetBrains Mono',monospace">${g.mode}</td>
             <td></td>
             <td>${placeBadge(g.p1.place)}</td>
-            <td class="col-p1" style="color:${killColor1(g.p1.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p1.kills}${isPrK1?prBadge1:''}</td>
+            <td class="col-p1" style="color:${killColor1(g.p1.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p1.kills}<span style="font-size:11px;color:var(--pewter);font-family:'JetBrains Mono',monospace;margin-left:5px">/ ${g.p1.deaths}d</span>${isPrK1?prBadge1:''}</td>
             <td class="col-p1-last" style="color:var(--gold2);font-family:'JetBrains Mono',monospace;font-size:11px">${kdStr(g.p1.kills,g.p1.deaths)}${isPrKd1?prBadge1:''}</td>
-            <td class="col-p2" style="color:${killColor2(g.p2.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p2.kills}${isPrK2?prBadge2:''}</td>
+            <td class="col-p2" style="color:${killColor2(g.p2.kills)};font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700">${g.p2.kills}<span style="font-size:11px;color:var(--pewter);font-family:'JetBrains Mono',monospace;margin-left:5px">/ ${g.p2.deaths}d</span>${isPrK2?prBadge2:''}</td>
             <td class="col-p2-last" style="color:var(--ice);font-family:'JetBrains Mono',monospace;font-size:11px">${kdStr(g.p2.kills,g.p2.deaths)}${isPrKd2?prBadge2:''}</td>
             <td>${winnerHtml(g.winner)}</td>
             <td></td>
