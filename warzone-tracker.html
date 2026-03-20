@@ -1450,8 +1450,6 @@ select option { background:#0a0c10; }
         <div class="compare-box" data-tip="K/D ratio over all games ever"><div class="compare-val" id="at-kd1">0.00</div><div class="compare-lbl">All Time K/D</div></div>
         <div class="compare-box" data-tip="Avg kills per game across all sessions"><div class="compare-val" id="at-avgkills1">0.0</div><div class="compare-lbl">Avg Kills</div></div>
         <div class="compare-box" data-tip="Total games won on most kills"><div class="compare-val" id="at-gamewins1">0</div><div class="compare-lbl">Game Wins</div></div>
-        <div class="compare-box" data-tip="Game wins in the current session"><div class="compare-val" id="at-sesswins1">0</div><div class="compare-lbl">Wins this sess.</div></div>
-        <div class="compare-box" data-tip="Gemiddelde eindpositie over alle games"><div class="compare-val" id="at-avgplace1">—</div><div class="compare-lbl">Avg Positie</div></div>
       </div>
     </div>
     <!-- P2 -->
@@ -1481,8 +1479,6 @@ select option { background:#0a0c10; }
         <div class="compare-box" data-tip="K/D ratio over all games ever"><div class="compare-val" id="at-kd2">0.00</div><div class="compare-lbl">All Time K/D</div></div>
         <div class="compare-box" data-tip="Avg kills per game across all sessions"><div class="compare-val" id="at-avgkills2">0.0</div><div class="compare-lbl">Avg Kills</div></div>
         <div class="compare-box" data-tip="Total games won on most kills"><div class="compare-val" id="at-gamewins2">0</div><div class="compare-lbl">Game Wins</div></div>
-        <div class="compare-box" data-tip="Game wins in the current session"><div class="compare-val" id="at-sesswins2">0</div><div class="compare-lbl">Wins this sess.</div></div>
-        <div class="compare-box" data-tip="Gemiddelde eindpositie over alle games"><div class="compare-val" id="at-avgplace2">—</div><div class="compare-lbl">Avg Positie</div></div>
       </div>
     </div>
   </div>
@@ -1501,7 +1497,10 @@ select option { background:#0a0c10; }
       <div class="shared-wins-val" id="shared-wins">0</div>
       <div class="shared-wins-lbl">Games won together</div>
     </div>
-    <div class="shared-wins-sub" id="shared-wins-sub">0 of 0 games ending at #1</div>
+    <div class="shared-wins-sub" id="shared-wins-sub" style="text-align:right">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--pewter);letter-spacing:1px;margin-bottom:3px">Gem. eindpositie</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--silver);line-height:1" id="shared-avg-place">—</div>
+    </div>
   </div>
 
   <!-- PERFORMANCE STATS -->
@@ -1912,7 +1911,6 @@ function init() {
   setBg(savedBg);
   const statIds = ['kd1','kd2','avgkills1','avgkills2','sessgamewins1','sessgamewins2',
     'at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2',
-    'at-sesswins1','at-sesswins2',
     'shared-wins','perf-maxkills1','perf-maxkills2','perf-maxkd1','perf-maxkd2',
     'perf-avgkills1','perf-avgkills2','perf-avgplace1','perf-avgplace2',
     'pl-1','pl-top5','pl-top10','pl-top20','pl-rest','pl-total'];
@@ -2739,7 +2737,7 @@ function renderLeaderboard(){
 
   // Show dashes if no games at all
   if(totalN===0){
-    ['at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2','at-sesswins1','at-sesswins2','at-avgplace1','at-avgplace2'].forEach(id=>{
+    ['at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2'].forEach(id=>{
       const el=document.getElementById(id);
       if(el){ el.textContent='—'; el.style.color='var(--silver)'; el.className='compare-val equal'; }
     });
@@ -2747,28 +2745,22 @@ function renderLeaderboard(){
     cmp('at-kd1','at-kd2',         at1.kd,       at2.kd,       v=>v.toFixed(2));
     cmp('at-avgkills1','at-avgkills2', at1.avgKills, at2.avgKills, v=>v.toFixed(1));
     cmp('at-gamewins1','at-gamewins2', at1.gameWins, at2.gameWins, v=>v);
-    // Wins this session — game wins in active session
-    const sessW1 = activeSess ? activeSess.games.filter(g=>g.winner===0).length : 0;
-    const sessW2 = activeSess ? activeSess.games.filter(g=>g.winner===1).length : 0;
-    cmp('at-sesswins1','at-sesswins2', sessW1, sessW2, v=>v);
-    // Avg positie (lager = beter)
-    const avgPlace = pk => {
-      const gs = allGamesTotal.filter(g=>g[pk].place>0);
-      return gs.length ? gs.reduce((s,g)=>s+g[pk].place,0)/gs.length : 0;
-    };
-    const ap1=avgPlace('p1'), ap2=avgPlace('p2');
-    if(ap1>0||ap2>0){
-      cmp('at-avgplace1','at-avgplace2', ap1, ap2, v=>v.toFixed(1), true);
-    } else {
-      ['at-avgplace1','at-avgplace2'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.textContent='—'; el.style.color='var(--silver)'; el.className='compare-val equal'; } });
-    }
   }
 
   // Shared: total #1 finishes all time (ongefilterd)
   const sharedWins=allGamesTotal.filter(g=>g.p1.place===1).length;
   animateVal(document.getElementById('shared-wins'), sharedWins);
-  const sub=document.getElementById('shared-wins-sub');
-  if(sub) sub.textContent=`${sharedWins} of ${totalN} game${totalN!==1?'s':''} ending at #1`;
+  // Gemiddelde eindpositie over alle games
+  const avgPlaceEl = document.getElementById('shared-avg-place');
+  if(avgPlaceEl){
+    const gamesWithPlace = allGamesTotal.filter(g=>g.p1.place>0);
+    if(gamesWithPlace.length){
+      const avg = gamesWithPlace.reduce((s,g)=>s+g.p1.place,0)/gamesWithPlace.length;
+      avgPlaceEl.textContent = avg.toFixed(1);
+    } else {
+      avgPlaceEl.textContent = '—';
+    }
+  }
 
   // Streak — consecutive #1 finishes across all games (most recent first)
   const allG = [...games].reverse();
@@ -2843,7 +2835,7 @@ function renderSessionTable(){
       const scoreHtml = isExp ? '' : `<span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:1px;white-space:nowrap"><span style="color:var(--gold2)">${w1}</span><span style="color:var(--pewter);margin:0 4px">–</span><span style="color:var(--ice)">${w2}</span></span>`;
 
       row.innerHTML = `
-        <td><span class="expand-icon">▶</span>${isActive?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2ee87a;box-shadow:0 0 6px #2ee87a;margin-left:6px;vertical-align:middle"></span>':''}</td>
+        <td style="display:flex;align-items:center;gap:6px"><span class="expand-icon">▶</span>${isActive?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2ee87a;box-shadow:0 0 6px #2ee87a;flex-shrink:0"></span>':''}</td>
         <td style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:1px;color:var(--platinum)">${sess.date}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--silver)">${tsToTime(sess.createdAt)}</td>
         <td>${isExp?'':` <span class="games-badge">${filteredGames.length} game${filteredGames.length!==1?'s':''}</span>`}</td>
