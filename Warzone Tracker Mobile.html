@@ -379,11 +379,13 @@
 
     // Initialen in P1/P2 tags
     const getInit = (pi) => {
-      if(playerInitials[pi] && playerInitials[pi].trim()) return playerInitials[pi].trim();
-      const name = playerNames[pi] || '';
-      const parts = name.trim().split(/\s+/);
+      const ini = playerInitials[pi] ? playerInitials[pi].trim() : '';
+      if(ini) return ini;
+      const name = (playerNames[pi] || '').trim();
+      if(!name) return pi===0?'P1':'P2';
+      const parts = name.split(/\s+/);
       if(parts.length >= 2) return (parts[0][0]+parts[1][0]).toUpperCase();
-      return name.slice(0,2).toUpperCase() || (pi===0?'P1':'P2');
+      return name.slice(0,2).toUpperCase();
     };
     const t1=$('tag1'); if(t1) t1.textContent=getInit(0);
     const t2=$('tag2'); if(t2) t2.textContent=getInit(1);
@@ -517,11 +519,10 @@
     setSync('syncing');
     window._fbListen('tracker', data=>{
       if(data){
-        sessions      = data.sessions || [];
-        // Namen alleen updaten als ze niet de standaard placeholder zijn
+        sessions = data.sessions || [];
         if(data.playerNames && data.playerNames[0] !== 'Player 1')
           playerNames = data.playerNames;
-        playerInitials = data.playerInitials || playerInitials;
+        if(data.playerInitials) playerInitials = data.playerInitials;
 
         // Actieve sessie altijd van Firebase overnemen
         if(data.currentSessionKey){

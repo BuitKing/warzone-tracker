@@ -1425,7 +1425,8 @@ select option { background:#0a0c10; }
       <div class="compare-row">
         <div class="compare-box" data-tip="K/D ratio over all games ever"><div class="compare-val" id="at-kd1">0.00</div><div class="compare-lbl">All Time K/D</div></div>
         <div class="compare-box" data-tip="Avg kills per game across all sessions"><div class="compare-val" id="at-avgkills1">0.0</div><div class="compare-lbl">Avg Kills</div></div>
-        <div class="compare-box" data-tip="Total aantal potjes gewonnen op meeste kills"><div class="compare-val" id="at-gamewins1">0</div><div class="compare-lbl">Game Wins</div></div>
+        <div class="compare-box" data-tip="Total games won on most kills"><div class="compare-val" id="at-gamewins1">0</div><div class="compare-lbl">Game Wins</div></div>
+        <div class="compare-box" data-tip="Game wins in the current session"><div class="compare-val" id="at-sesswins1">0</div><div class="compare-lbl">Wins this sess.</div></div>
       </div>
     </div>
     <!-- P2 -->
@@ -1454,7 +1455,8 @@ select option { background:#0a0c10; }
       <div class="compare-row">
         <div class="compare-box" data-tip="K/D ratio over all games ever"><div class="compare-val" id="at-kd2">0.00</div><div class="compare-lbl">All Time K/D</div></div>
         <div class="compare-box" data-tip="Avg kills per game across all sessions"><div class="compare-val" id="at-avgkills2">0.0</div><div class="compare-lbl">Avg Kills</div></div>
-        <div class="compare-box" data-tip="Total aantal potjes gewonnen op meeste kills"><div class="compare-val" id="at-gamewins2">0</div><div class="compare-lbl">Game Wins</div></div>
+        <div class="compare-box" data-tip="Total games won on most kills"><div class="compare-val" id="at-gamewins2">0</div><div class="compare-lbl">Game Wins</div></div>
+        <div class="compare-box" data-tip="Game wins in the current session"><div class="compare-val" id="at-sesswins2">0</div><div class="compare-lbl">Wins this sess.</div></div>
       </div>
     </div>
   </div>
@@ -1710,7 +1712,7 @@ select option { background:#0a0c10; }
   <div class="player-input-block p1-block">
     <div class="pib-header">
       <div class="pib-name p1label" id="panelName1">Joost</div>
-      <div class="pib-tag">P1</div>
+      <div class="pib-tag" id="panelTag1">P1</div>
     </div>
     <div class="pib-stats">
       <div class="pib-stat">
@@ -1728,7 +1730,7 @@ select option { background:#0a0c10; }
   <div class="player-input-block p2-block">
     <div class="pib-header">
       <div class="pib-name p2label" id="panelName2">Vriend</div>
-      <div class="pib-tag" style="color:var(--ice);border-color:rgba(0,184,230,.3)">P2</div>
+      <div class="pib-tag" id="panelTag2" style="color:var(--ice);border-color:rgba(0,184,230,.3)">P2</div>
     </div>
     <div class="pib-stats">
       <div class="pib-stat">
@@ -1865,12 +1867,15 @@ function init() {
   setBg(savedBg);
   const statIds = ['kd1','kd2','avgkills1','avgkills2','sessgamewins1','sessgamewins2',
     'at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2',
+    'at-sesswins1','at-sesswins2',
     'shared-wins','perf-maxkills1','perf-maxkills2','perf-maxkd1','perf-maxkd2',
     'perf-avgkills1','perf-avgkills2','perf-avgplace1','perf-avgplace2',
     'pl-1','pl-top5','pl-top10','pl-top20','pl-rest','pl-total'];
-  statIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='0'; });
-  updatePanelDate();
+  statIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='0'; });  updatePanelDate();
   updateInitials();
+  // Update panel player names explicitly
+  const pn1=document.getElementById('panelName1'); if(pn1) pn1.textContent=playerNames[0];
+  const pn2=document.getElementById('panelName2'); if(pn2) pn2.textContent=playerNames[1];
   selectPlace(2);
   initCombo();
   render();
@@ -2317,6 +2322,11 @@ function updateInitials(){
   const el2 = document.getElementById('initials2');
   if(el1) el1.textContent = playerInitials[0] || getInitials(playerNames[0]);
   if(el2) el2.textContent = playerInitials[1] || getInitials(playerNames[1]);
+  // Also update panel tags
+  const pt1 = document.getElementById('panelTag1');
+  const pt2 = document.getElementById('panelTag2');
+  if(pt1) pt1.textContent = playerInitials[0] || getInitials(playerNames[0]);
+  if(pt2) pt2.textContent = playerInitials[1] || getInitials(playerNames[1]);
 }
 
 function openInitialsEdit(pi){
@@ -2624,7 +2634,7 @@ function renderLeaderboard(){
 
   // Show dashes if no games at all
   if(totalN===0){
-    ['at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2'].forEach(id=>{
+    ['at-kd1','at-kd2','at-avgkills1','at-avgkills2','at-gamewins1','at-gamewins2','at-sesswins1','at-sesswins2'].forEach(id=>{
       const el=document.getElementById(id);
       if(el){ el.textContent='—'; el.style.color='var(--silver)'; el.className='compare-val equal'; }
     });
@@ -2632,6 +2642,10 @@ function renderLeaderboard(){
     cmp('at-kd1','at-kd2',         at1.kd,       at2.kd,       v=>v.toFixed(2));
     cmp('at-avgkills1','at-avgkills2', at1.avgKills, at2.avgKills, v=>v.toFixed(1));
     cmp('at-gamewins1','at-gamewins2', at1.gameWins, at2.gameWins, v=>v);
+    // Wins this session — game wins in active session
+    const sessW1 = activeSess ? activeSess.games.filter(g=>g.winner===0).length : 0;
+    const sessW2 = activeSess ? activeSess.games.filter(g=>g.winner===1).length : 0;
+    cmp('at-sesswins1','at-sesswins2', sessW1, sessW2, v=>v);
   }
 
   // Shared: total #1 finishes all time (ongefilterd)
@@ -2689,7 +2703,7 @@ function renderSessionTable(){
     const killColor2 = (k) => k > avgK2 ? 'var(--emerald)' : k < avgK2 && avgK2>0 ? 'var(--ruby)' : 'var(--ice)';
 
     let rowsAdded = 0;
-    [...allFiltered].reverse().forEach(sess=>{
+    [...allFiltered].sort((a,b)=>b.dateKey.localeCompare(a.dateKey)).forEach(sess=>{
       const filteredGames = modeFilter==='all' ? sess.games : sess.games.filter(g=>g.mode===modeFilter);
       if(!filteredGames.length) return;
 
