@@ -1444,7 +1444,7 @@ select option { background:#0a0c10; }
       <div class="stats-row">
         <div class="stat-box" data-tip="K/D of all games in today's session"><div class="stat-val p1c" id="kd1">0.00</div><div class="stat-lbl">Session K/D</div></div>
         <div class="stat-box" data-tip="Avg kills per game today"><div class="stat-val p1c" id="avgkills1">0.0</div><div class="stat-lbl">Session Avg Kills</div></div>
-        <div class="stat-box" data-tip="Games won on most kills today"><div class="stat-val p1c" id="sessgamewins1">0</div><div class="stat-lbl">Session Wins</div></div>
+        <div class="stat-box" data-tip="Aantal gewonnen sessies (meeste game wins)"><div class="stat-val p1c" id="sessgamewins1">0</div><div class="stat-lbl">Session Wins</div></div>
       </div>
       <div class="compare-row">
         <div class="compare-box" data-tip="K/D ratio over all games ever"><div class="compare-val" id="at-kd1">0.00</div><div class="compare-lbl">All Time K/D</div></div>
@@ -1473,7 +1473,7 @@ select option { background:#0a0c10; }
       <div class="stats-row">
         <div class="stat-box" data-tip="K/D of all games in today's session"><div class="stat-val p2c" id="kd2">0.00</div><div class="stat-lbl">Session K/D</div></div>
         <div class="stat-box" data-tip="Avg kills per game today"><div class="stat-val p2c" id="avgkills2">0.0</div><div class="stat-lbl">Session Avg Kills</div></div>
-        <div class="stat-box" data-tip="Games won on most kills today"><div class="stat-val p2c" id="sessgamewins2">0</div><div class="stat-lbl">Session Wins</div></div>
+        <div class="stat-box" data-tip="Aantal gewonnen sessies (meeste game wins)"><div class="stat-val p2c" id="sessgamewins2">0</div><div class="stat-lbl">Session Wins</div></div>
       </div>
       <div class="compare-row">
         <div class="compare-box" data-tip="K/D ratio over all games ever"><div class="compare-val" id="at-kd2">0.00</div><div class="compare-lbl">All Time K/D</div></div>
@@ -2657,9 +2657,10 @@ function renderLeaderboard(){
       animateVal(avgEl, parseFloat(t.avgKills.toFixed(1)), 1);
       setColor(avgEl, t.avgKills, s.avgKills);
       const winsEl = document.getElementById(`sessgamewins${sfx}`);
-      animateVal(winsEl, t.gameWins, 0);
-      const otherWins = pi===0 ? t2.gameWins : t1.gameWins;
-      setWinsColor(winsEl, t.gameWins, otherWins);
+      const sessWins = pi===0 ? sw1 : sw2;
+      const otherSessWins = pi===0 ? sw2 : sw1;
+      animateVal(winsEl, sessWins, 0);
+      setWinsColor(winsEl, sessWins, otherSessWins);
     }
     const badge=document.getElementById(`badge${sfx}`);
     if(badge){
